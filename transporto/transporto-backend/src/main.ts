@@ -11,7 +11,7 @@ async function bootstrap() {
   app.use(helmet());
 
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: ['http://localhost:3000', 'http://localhost:3002', 'http://localhost:3001', process.env.FRONTEND_URL].filter(Boolean),
     credentials: true,
   });
 
