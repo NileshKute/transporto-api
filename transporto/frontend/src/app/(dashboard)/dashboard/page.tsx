@@ -3,16 +3,29 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { StatCard } from '@/components/ui/StatCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { AlertBanner } from '@/components/ui/AlertBanner';
+import { LoadingSpinner, TableSkeleton } from '@/components/ui/LoadingSpinner';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Truck, Users, Route, Fuel, Wrench, AlertTriangle, Shield, Thermometer } from 'lucide-react';
 import Link from 'next/link';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+
+const CHART_COLORS = { primary: '#3b82f6', secondary: '#8b5cf6', success: '#10b981', warning: '#f59e0b', danger: '#ef4444', info: '#0ea5e9' };
+const tooltipStyle = { backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '12px', fontSize: '13px' };
+
+const weeklyTripData = [{ day: 'Mon', trips: 12 }, { day: 'Tue', trips: 19 }, { day: 'Wed', trips: 8 }, { day: 'Thu', trips: 15 }, { day: 'Fri', trips: 22 }, { day: 'Sat', trips: 10 }, { day: 'Sun', trips: 5 }];
+const vehicleStatusData = [
+  { name: 'Active', value: 28, color: CHART_COLORS.success },
+  { name: 'Maintenance', value: 5, color: CHART_COLORS.warning },
+  { name: 'Idle', value: 12, color: '#64748b' },
+  { name: 'Breakdown', value: 2, color: CHART_COLORS.danger },
+];
 
 function SectionHeader({ title, href }: { title: string; href: string }) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <h3 className="text-sm font-bold text-slate-300">{title}</h3>
-      <Link href={href} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">View all →</Link>
+      <h3 className="text-base font-semibold text-[var(--text-primary)]">{title}</h3>
+      <Link href={href} className="text-sm text-[var(--primary-600)] hover:text-[var(--primary-700)] font-medium transition-colors">View all →</Link>
     </div>
   );
 }
@@ -30,105 +43,119 @@ export default function DashboardPage() {
 
   if (sl) return <LoadingSpinner text="Loading dashboard..." />;
 
+  const pendingEmergencies = stats?.emergencies?.pending ?? recent?.emergencies?.filter((e: any) => e.status === 'PENDING' || e.status === 'ACKNOWLEDGED').length ?? 0;
+
   return (
     <div className="space-y-6 max-w-7xl">
       {/* Main KPIs */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard title="Total Vehicles" value={stats?.vehicles?.total ?? 0} subtitle={`${stats?.vehicles?.active ?? 0} active`} icon={Truck} color="blue" />
-        <StatCard title="Total Drivers" value={stats?.drivers?.total ?? 0} subtitle={`${stats?.drivers?.onTrip ?? 0} on trip`} icon={Users} color="green" />
-        <StatCard title="Trips Today" value={stats?.trips?.today ?? 0} subtitle="Active today" icon={Route} color="purple" />
-        <StatCard title="Total Fuel Spend" value={formatCurrency(stats?.fuel?.totalCost)} subtitle="All time" icon={Fuel} color="amber" />
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
+        <StatCard icon={Truck} iconColor="blue" title="Total Vehicles" value={stats?.vehicles?.total ?? 0} subtitle={`${stats?.vehicles?.active ?? 0} active`} trend={12} trendDirection="up" />
+        <StatCard icon={Users} iconColor="green" title="Active Drivers" value={stats?.drivers?.total ?? 0} subtitle={`${stats?.drivers?.onTrip ?? 0} on trip`} trend={5} trendDirection="up" />
+        <StatCard icon={Route} iconColor="purple" title="Today's Trips" value={stats?.trips?.today ?? 0} subtitle="Active today" trend={-3} trendDirection="down" />
+        <StatCard icon={Fuel} iconColor="amber" title="Fuel Spend" value={formatCurrency(stats?.fuel?.totalCost)} subtitle="All time" />
       </div>
 
       {/* Alert Cards */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
         {[
-          { label: 'Active Maintenance', value: stats?.maintenance?.active ?? 0, icon: Wrench, color: 'text-amber-400', bg: 'bg-amber-500/8 border-amber-500/20', href: '/maintenance' },
-          { label: 'Pending Emergencies', value: stats?.emergencies?.pending ?? 0, icon: AlertTriangle, color: 'text-red-400', bg: 'bg-red-500/8 border-red-500/20', href: '/emergencies' },
-          { label: 'Expiring Insurance', value: stats?.insurance?.expiring ?? 0, icon: Shield, color: 'text-orange-400', bg: 'bg-orange-500/8 border-orange-500/20', href: '/insurance' },
-          { label: 'Cold Storage Alerts', value: stats?.coldStorage?.alerts ?? 0, icon: Thermometer, color: 'text-cyan-400', bg: 'bg-cyan-500/8 border-cyan-500/20', href: '/cold-storage' },
-        ].map(({ label, value, icon: Icon, color, bg, href }) => (
+          { label: 'Active Maintenance', value: stats?.maintenance?.active ?? 0, icon: Wrench, border: 'border-l-amber-500', iconClass: 'text-amber-600', href: '/maintenance' },
+          { label: 'Pending Emergencies', value: stats?.emergencies?.pending ?? 0, icon: AlertTriangle, border: 'border-l-red-500', iconClass: 'text-red-600', href: '/emergencies' },
+          { label: 'Expiring Insurance', value: stats?.insurance?.expiring ?? 0, icon: Shield, border: 'border-l-orange-500', iconClass: 'text-orange-600', href: '/insurance' },
+          { label: 'Cold Storage Alerts', value: stats?.coldStorage?.alerts ?? 0, icon: Thermometer, border: 'border-l-cyan-500', iconClass: 'text-cyan-600', href: '/cold-storage' },
+        ].map(({ label, value, icon: Icon, border, iconClass, href }) => (
           <Link key={label} href={href}>
-            <div className={`border rounded-xl p-4 flex items-center gap-4 card-hover cursor-pointer ${bg}`}>
-              <div className={`p-2.5 rounded-xl bg-white/5`}><Icon className={`w-5 h-5 ${color}`} /></div>
+            <div className={`bg-white rounded-xl border border-[var(--border-light)] border-l-4 ${border} p-4 shadow-[var(--shadow-card)] flex items-center gap-4 hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer`}>
+              <div className={`p-2.5 rounded-xl bg-gray-100 ${iconClass}`}><Icon className="w-5 h-5" /></div>
               <div>
-                <p className={`text-2xl font-bold ${value > 0 ? color : 'text-slate-300'}`}>{value}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{label}</p>
+                <p className={`text-2xl font-bold mono ${value > 0 ? iconClass : 'text-[var(--text-muted)]'}`}>{value}</p>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">{label}</p>
               </div>
             </div>
           </Link>
         ))}
       </div>
 
-      {/* Recent Activity */}
+      {/* Charts */}
+      <div className="grid xl:grid-cols-5 gap-5">
+        <div className="xl:col-span-3 bg-white rounded-xl border border-[var(--border-light)] shadow-[var(--shadow-card)] p-5">
+          <h3 className="text-base font-semibold text-[var(--text-primary)] mb-4">Weekly Trip Activity</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={weeklyTripData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={{ stroke: '#e2e8f0' }} />
+              <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={{ stroke: '#e2e8f0' }} />
+              <Tooltip contentStyle={tooltipStyle} formatter={(value: any, name: any) => [`${value}`, name]} />
+              <Bar dataKey="trips" fill={CHART_COLORS.primary} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="xl:col-span-2 bg-white rounded-xl border border-[var(--border-light)] shadow-[var(--shadow-card)] p-5">
+          <h3 className="text-base font-semibold text-[var(--text-primary)] mb-4">Vehicle Status</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <PieChart>
+              <Pie data={vehicleStatusData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value">
+                {vehicleStatusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+              </Pie>
+              <Tooltip contentStyle={tooltipStyle} formatter={(value: any, name: any) => [`${value}`, name]} />
+              <Legend layout="horizontal" align="center" wrapperStyle={{ fontSize: 12 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Recent Trips & Fuel */}
       <div className="grid xl:grid-cols-2 gap-5">
-        {/* Recent Trips */}
-        <div className="bg-[#0d1424] border border-[#1a2235] rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#1a2235]">
+        <div className="bg-white border border-[var(--border-light)] rounded-xl overflow-hidden shadow-[var(--shadow-card)]">
+          <div className="px-5 py-4 border-b border-[var(--border-light)]">
             <SectionHeader title="Recent Trips" href="/trips" />
           </div>
-          {rl ? <LoadingSpinner /> : (
+          {rl ? <TableSkeleton rows={5} cols={4} /> : (
             <table>
               <thead><tr><th>Trip #</th><th>Vehicle</th><th>Route</th><th>Status</th></tr></thead>
               <tbody>
                 {recent?.trips?.slice(0, 5).map((t: any) => (
                   <tr key={t.id}>
-                    <td><span className="font-mono text-xs font-bold text-blue-400">{t.tripNumber}</span></td>
-                    <td><span className="font-mono text-xs text-slate-300">{t.vehicle?.regNumber}</span></td>
-                    <td><span className="text-xs text-slate-500 truncate block max-w-[130px]">{t.startLocation?.split('(')[0].trim()} → {t.endLocation?.split('(')[0].trim() || '...'}</span></td>
+                    <td><span className="mono text-sm font-bold text-[var(--primary-600)]">{t.tripNumber}</span></td>
+                    <td><span className="mono text-sm text-[var(--text-secondary)]">{t.vehicle?.regNumber}</span></td>
+                    <td><span className="text-sm text-[var(--text-secondary)] truncate block max-w-[160px]">{t.startLocation?.split('(')[0].trim()} → {t.endLocation?.split('(')[0].trim() || '...'}</span></td>
                     <td><StatusBadge status={t.status} /></td>
                   </tr>
                 ))}
-                {!recent?.trips?.length && <tr><td colSpan={4} className="text-center py-8 text-slate-600 text-sm">No trips yet</td></tr>}
+                {!recent?.trips?.length && <tr><td colSpan={4} className="text-center py-8 text-[var(--text-muted)] text-sm">No trips yet</td></tr>}
               </tbody>
             </table>
           )}
         </div>
-
-        {/* Recent Fuel */}
-        <div className="bg-[#0d1424] border border-[#1a2235] rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#1a2235]">
+        <div className="bg-white border border-[var(--border-light)] rounded-xl overflow-hidden shadow-[var(--shadow-card)]">
+          <div className="px-5 py-4 border-b border-[var(--border-light)]">
             <SectionHeader title="Recent Fuel Entries" href="/fuel" />
           </div>
-          {rl ? <LoadingSpinner /> : (
+          {rl ? <TableSkeleton rows={5} cols={4} /> : (
             <table>
-              <thead><tr><th>Vehicle</th><th>Driver</th><th>Liters</th><th>Cost</th></tr></thead>
+              <thead><tr><th>Vehicle</th><th>Liters</th><th>Cost</th><th>Date</th></tr></thead>
               <tbody>
                 {recent?.fuelEntries?.slice(0, 5).map((f: any) => (
                   <tr key={f.id}>
-                    <td><span className="font-mono text-xs font-bold text-blue-400">{f.vehicle?.regNumber}</span></td>
-                    <td className="text-sm text-slate-300">{f.driver?.name}</td>
-                    <td className="text-slate-400">{f.liters}L</td>
-                    <td><span className="font-semibold text-emerald-400">{formatCurrency(f.totalCost)}</span></td>
+                    <td><span className="mono text-sm font-semibold text-[var(--text-primary)]">{f.vehicle?.regNumber}</span></td>
+                    <td className="mono text-sm">{f.liters} L</td>
+                    <td><span className="mono font-semibold text-[var(--success)]">{formatCurrency(f.totalCost)}</span></td>
+                    <td className="text-sm text-[var(--text-muted)]">{formatDate(f.fuelDate)}</td>
                   </tr>
                 ))}
-                {!recent?.fuelEntries?.length && <tr><td colSpan={4} className="text-center py-8 text-slate-600 text-sm">No fuel entries</td></tr>}
+                {!recent?.fuelEntries?.length && <tr><td colSpan={4} className="text-center py-8 text-[var(--text-muted)] text-sm">No fuel entries</td></tr>}
               </tbody>
             </table>
           )}
         </div>
       </div>
 
-      {/* Recent Emergencies (if any) */}
-      {recent?.emergencies?.length > 0 && (
-        <div className="bg-[#0d1424] border border-red-500/20 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-red-500/20 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-400" />
-            <h3 className="text-sm font-bold text-slate-300">Recent Emergencies</h3>
-          </div>
-          <div className="p-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {recent.emergencies.slice(0, 3).map((e: any) => (
-              <div key={e.id} className="bg-[#0a0e1a] border border-[#1a2235] rounded-xl p-4 border-l-2 border-l-red-500">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-bold text-red-300">{e.type?.replace(/_/g,' ')}</span>
-                  <StatusBadge status={e.status} />
-                </div>
-                <p className="text-xs text-slate-500">{e.vehicle?.regNumber} • {e.driver?.name}</p>
-                {e.location && <p className="text-xs text-slate-600 mt-1 truncate">📍 {e.location}</p>}
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Emergency Banner */}
+      {pendingEmergencies > 0 && (
+        <AlertBanner
+          type="danger"
+          title={`${pendingEmergencies} Active Emergency${pendingEmergencies > 1 ? 's' : ''} Require Attention`}
+          action={{ label: 'View All', onClick: () => window.location.href = '/emergencies' }}
+        />
       )}
     </div>
   );

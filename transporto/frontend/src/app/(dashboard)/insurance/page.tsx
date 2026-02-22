@@ -8,6 +8,7 @@ import { Pagination } from '@/components/ui/Pagination';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import Link from 'next/link';
 import { Plus, AlertTriangle, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -38,32 +39,33 @@ export default function InsurancePage() {
   const f = (name: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((p: any) => ({ ...p, [name]: e.target.value }));
 
-  const rowBg = (s: string) => s === 'EXPIRED' ? 'bg-red-500/5' : s === 'EXPIRING_SOON' ? 'bg-amber-500/5' : '';
+  const rowBg = (s: string) => s === 'EXPIRED' ? 'bg-red-50' : s === 'EXPIRING_SOON' ? 'bg-amber-50' : '';
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-slate-100">Insurance</h2><p className="text-sm text-slate-500">Vehicle insurance policies</p></div>
-        <button onClick={() => { setForm({ type: 'COMPREHENSIVE', status: 'ACTIVE' }); setEditItem(null); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors">
+        <div><h2 className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Insurance</h2><p className="text-sm text-[var(--text-secondary)]">Vehicle insurance policies</p></div>
+        <button onClick={() => { setForm({ type: 'COMPREHENSIVE', status: 'ACTIVE' }); setEditItem(null); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--primary-600)] hover:bg-[var(--primary-700)] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
           <Plus className="w-4 h-4" /> Add Policy
         </button>
       </div>
 
       {expiring?.length > 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
-          <p className="text-sm text-amber-300"><strong>{expiring.length} insurance {expiring.length === 1 ? 'policy' : 'policies'}</strong> expiring within 30 days. Please renew them soon.</p>
+        <div className="bg-[var(--warning-bg)] border-l-4 border-amber-500 rounded-xl p-4 flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <p className="text-sm text-[var(--text-primary)]"><strong>{expiring.length} insurance {expiring.length === 1 ? 'policy' : 'policies'}</strong> expiring within 30 days.</p>
+          <Link href="#table" className="text-sm font-semibold text-[var(--primary-600)] hover:underline">View →</Link>
         </div>
       )}
 
-      <div className="bg-[#111827] border border-[#1e293b] rounded-xl p-4 flex gap-3">
-        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="w-48">
+      <div className="bg-white border border-[var(--border-light)] rounded-xl p-4 shadow-[var(--shadow-card)] flex gap-3">
+        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="h-10 w-48 rounded-lg border border-[var(--border-default)] text-sm">
           <option value="">All Statuses</option>
           {I_STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
         </select>
       </div>
 
-      <div className="bg-[#111827] border border-[#1e293b] rounded-xl overflow-hidden">
+      <div id="table" className="bg-white border border-[var(--border-light)] rounded-xl overflow-hidden shadow-[var(--shadow-card)]">
         {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message="No insurance policies" /> : (
           <div className="overflow-x-auto">
             <table>
@@ -71,13 +73,13 @@ export default function InsurancePage() {
               <tbody>
                 {data.data.map((i: any) => (
                   <tr key={i.id} className={rowBg(i.status)}>
-                    <td className="font-mono text-xs text-blue-400">{i.vehicle?.regNumber}</td>
-                    <td className="font-medium text-slate-200">{i.provider}</td>
-                    <td className="font-mono text-xs text-slate-400">{i.policyNumber}</td>
-                    <td><span className="text-xs bg-slate-700/50 text-slate-300 px-2 py-0.5 rounded">{i.type?.replace(/_/g,' ')}</span></td>
-                    <td className="text-emerald-400 font-medium">{formatCurrency(i.premium)}</td>
-                    <td className="text-slate-400">{i.coverAmount ? formatCurrency(i.coverAmount) : '—'}</td>
-                    <td className="text-xs text-slate-400">{formatDate(i.startDate)}</td>
+                    <td className="mono text-sm font-semibold text-[var(--text-primary)]">{i.vehicle?.regNumber}</td>
+                    <td className="font-medium text-[var(--text-primary)]">{i.provider}</td>
+                    <td className="mono text-sm text-[var(--text-secondary)]">{i.policyNumber}</td>
+                    <td><span className="text-xs bg-[var(--bg-table-header)] text-[var(--text-secondary)] px-2 py-0.5 rounded font-medium">{i.type?.replace(/_/g,' ')}</span></td>
+                    <td className="mono font-semibold text-[var(--success)]">{formatCurrency(i.premium)}</td>
+                    <td className="mono text-[var(--text-secondary)]">{i.coverAmount ? formatCurrency(i.coverAmount) : '—'}</td>
+                    <td className="text-xs text-[var(--text-muted)]">{formatDate(i.startDate)}</td>
                     <td className={`text-xs font-medium ${i.status === 'EXPIRED' ? 'text-red-400' : i.status === 'EXPIRING_SOON' ? 'text-amber-400' : 'text-slate-400'}`}>{formatDate(i.endDate)}</td>
                     <td><StatusBadge status={i.status} /></td>
                     <td className="text-xs text-slate-400">{i.agentName || '—'}</td>

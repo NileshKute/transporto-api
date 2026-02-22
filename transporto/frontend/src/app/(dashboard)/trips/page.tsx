@@ -49,24 +49,27 @@ export default function TripsPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-slate-100">Trips</h2><p className="text-sm text-slate-500">Manage all trips</p></div>
-        <button onClick={() => { setForm({}); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors">
+        <div>
+          <h2 className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Trips</h2>
+          <p className="text-sm text-[var(--text-secondary)] mt-0.5">Manage all trips</p>
+        </div>
+        <button onClick={() => { setForm({}); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--primary-600)] hover:bg-[var(--primary-700)] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
           <Plus className="w-4 h-4" /> New Trip
         </button>
       </div>
 
-      <div className="bg-[#111827] border border-[#1e293b] rounded-xl p-4 flex flex-wrap gap-3">
+      <div className="bg-white border border-[var(--border-light)] rounded-xl p-4 shadow-[var(--shadow-card)] flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search trip#, location, client..." style={{ paddingLeft: '36px' }} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search trip#, location, client..." className="h-10 pl-10 rounded-lg border border-[var(--border-default)] text-sm w-full" />
         </div>
-        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="w-40">
+        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="h-10 w-40 rounded-lg border border-[var(--border-default)] text-sm">
           <option value="">All Statuses</option>
           {STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
         </select>
       </div>
 
-      <div className="bg-[#111827] border border-[#1e293b] rounded-xl overflow-hidden">
+      <div className="bg-white border border-[var(--border-light)] rounded-xl overflow-hidden shadow-[var(--shadow-card)]">
         {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message="No trips found" /> : (
           <div className="overflow-x-auto">
             <table>
@@ -74,18 +77,18 @@ export default function TripsPage() {
               <tbody>
                 {data.data.map((t: any) => (
                   <tr key={t.id}>
-                    <td className="font-mono text-xs font-bold text-blue-400">{t.tripNumber}</td>
-                    <td className="text-xs text-slate-400">{formatDate(t.date)}</td>
-                    <td className="font-mono text-xs text-slate-300">{t.vehicle?.regNumber}</td>
-                    <td className="text-sm text-slate-300">{t.driver?.name}</td>
-                    <td className="text-xs text-slate-400 max-w-[150px]"><span className="truncate block">{t.startLocation} → {t.endLocation || '...'}</span></td>
-                    <td className="text-slate-400">{t.distanceKm ? `${t.distanceKm} km` : '—'}</td>
+                    <td className="mono text-sm font-bold text-[var(--primary-600)]">{t.tripNumber}</td>
+                    <td className="text-sm text-[var(--text-secondary)]">{formatDate(t.date)}</td>
+                    <td className="mono text-sm text-[var(--text-secondary)]">{t.vehicle?.regNumber}</td>
+                    <td className="text-sm text-[var(--text-primary)]">{t.driver?.name}</td>
+                    <td className="text-sm text-[var(--text-secondary)] max-w-[150px]"><span className="truncate block">{t.startLocation} → {t.endLocation || '...'}</span></td>
+                    <td className="mono text-[var(--text-secondary)]">{t.distanceKm ? `${t.distanceKm} km` : '—'}</td>
                     <td><StatusBadge status={t.status} /></td>
-                    <td className="text-emerald-400 font-medium">{t.billAmount ? formatCurrency(t.billAmount) : '—'}</td>
+                    <td className="mono font-semibold text-[var(--success)]">{t.billAmount ? formatCurrency(t.billAmount) : '—'}</td>
                     <td>
                       {t.status === 'IN_PROGRESS' && (
                         <button onClick={() => { setCompleteTrip(t); setCompleteForm({ endKm: t.endKm || '', endLocation: t.endLocation || '' }); }}
-                          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors">
+                          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-[var(--success)] border border-[var(--success)] hover:bg-[var(--success-bg)] rounded-lg transition-colors">
                           <CheckCircle className="w-3 h-3" /> Complete
                         </button>
                       )}

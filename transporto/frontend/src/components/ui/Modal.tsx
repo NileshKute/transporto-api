@@ -23,15 +23,15 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative w-full ${sizeMap[size]} bg-[#111827] border border-[#1e293b] rounded-2xl shadow-2xl max-h-[90vh] flex flex-col`}>
-        <div className="flex items-center justify-between p-5 border-b border-[#1e293b] flex-shrink-0">
-          <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
-          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-[#1a2035] rounded-lg transition-colors">
+      <div className="absolute inset-0 bg-[var(--bg-modal-overlay)] backdrop-blur-sm" onClick={onClose} />
+      <div className={`relative w-full ${sizeMap[size]} bg-white border border-[var(--border-light)] rounded-xl shadow-lg max-h-[90vh] flex flex-col`}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-light)] flex-shrink-0">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h2>
+          <button onClick={onClose} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-table-header)] rounded-lg transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="overflow-y-auto flex-1">{children}</div>
+        <div className="overflow-y-auto flex-1 p-6">{children}</div>
       </div>
     </div>
   );

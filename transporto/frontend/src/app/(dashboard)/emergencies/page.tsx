@@ -52,30 +52,29 @@ export default function EmergenciesPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-slate-100">Emergencies</h2><p className="text-sm text-slate-500">Track and resolve incidents</p></div>
-        <button onClick={() => { setForm({ priority: 'HIGH' }); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded-lg transition-colors">
+        <div><h2 className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Emergencies</h2><p className="text-sm text-[var(--text-secondary)]">Track and resolve incidents</p></div>
+        <button onClick={() => { setForm({ priority: 'HIGH' }); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
           <Plus className="w-4 h-4" /> Report Emergency
         </button>
       </div>
 
-      {/* Status filters */}
       <div className="flex flex-wrap gap-2">
         {['', ...E_STATUSES].map(s => (
           <button key={s} onClick={() => { setFilterStatus(s); setPage(1); }}
-            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${filterStatus === s ? 'bg-blue-600 text-white' : 'bg-[#111827] border border-[#1e293b] text-slate-400 hover:text-slate-100'}`}>
+            className={`px-3 py-2 text-sm rounded-lg font-medium transition-colors ${filterStatus === s ? 'bg-[var(--primary-600)] text-white' : 'bg-white border border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-table-header)]'}`}>
             {s || 'All'}
           </button>
         ))}
       </div>
 
       {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message="No emergencies found" description="All clear!" /> : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {data.data.map((e: any) => (
-            <div key={e.id} className={`bg-[#111827] border border-[#1e293b] rounded-xl p-5 border-l-4 ${priorityBorder[e.priority] || 'border-l-slate-500'}`}>
+            <div key={e.id} className={`bg-white border border-[var(--border-light)] rounded-xl p-5 border-l-4 shadow-[var(--shadow-card)] ${priorityBorder[e.priority] || 'border-l-slate-400'}`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="text-xl">{typeIcon[e.type] || '⚠️'}</span>
-                  <span className="font-bold text-slate-100 text-sm">{e.type?.replace(/_/g,' ')}</span>
+                  <span className="font-bold text-[var(--text-primary)] text-sm">{e.type?.replace(/_/g,' ')}</span>
                 </div>
                 <StatusBadge status={e.status} />
               </div>

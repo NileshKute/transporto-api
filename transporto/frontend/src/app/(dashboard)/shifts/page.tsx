@@ -49,8 +49,8 @@ export default function ShiftsPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-slate-100">Shifts</h2><p className="text-sm text-slate-500">Driver shift management</p></div>
-        <button onClick={() => { setForm({}); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors">
+        <div><h2 className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Shifts</h2><p className="text-sm text-[var(--text-secondary)]">Driver shift management</p></div>
+        <button onClick={() => { setForm({}); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--primary-600)] hover:bg-[var(--primary-700)] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
           <Plus className="w-4 h-4" /> Create Shift
         </button>
       </div>
@@ -58,26 +58,26 @@ export default function ShiftsPage() {
       <div className="flex flex-wrap gap-2">
         {['', 'SCHEDULED', 'ACTIVE', 'COMPLETED', 'CANCELLED', 'NO_SHOW'].map(s => (
           <button key={s} onClick={() => { setFilterStatus(s); setPage(1); }}
-            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${filterStatus === s ? 'bg-blue-600 text-white' : 'bg-[#111827] border border-[#1e293b] text-slate-400 hover:text-slate-100'}`}>
+            className={`px-3 py-2 text-sm rounded-lg font-medium transition-colors ${filterStatus === s ? 'bg-[var(--primary-600)] text-white' : 'bg-white border border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-table-header)]'}`}>
             {s || 'All'}
           </button>
         ))}
       </div>
 
-      <div className="bg-[#111827] border border-[#1e293b] rounded-xl overflow-hidden">
+      <div className="bg-white border border-[var(--border-light)] rounded-xl overflow-hidden shadow-[var(--shadow-card)]">
         {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message="No shifts found" /> : (
           <div className="overflow-x-auto">
             <table>
               <thead><tr><th>Driver</th><th>Vehicle</th><th>Date</th><th>Start</th><th>End</th><th>Hours</th><th>Overtime</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody>
                 {data.data.map((s: any) => (
-                  <tr key={s.id} className={s.overtime > 0 ? 'bg-amber-500/5' : ''}>
-                    <td className="font-medium text-slate-200">{s.driver?.name}</td>
-                    <td className="font-mono text-xs text-blue-400">{s.vehicle?.regNumber || '—'}</td>
-                    <td className="text-xs text-slate-400">{formatDate(s.date)}</td>
-                    <td className="text-xs text-slate-300">{formatDateTime(s.startTime)}</td>
-                    <td className="text-xs text-slate-400">{s.endTime ? formatDateTime(s.endTime) : '—'}</td>
-                    <td className="font-medium text-slate-200">{s.hoursWorked != null ? `${s.hoursWorked}h` : '—'}</td>
+                  <tr key={s.id} className={s.overtime > 0 ? 'border-l-4 border-l-amber-500 bg-amber-50/50' : ''}>
+                    <td className="font-medium text-[var(--text-primary)]">{s.driver?.name}</td>
+                    <td className="mono text-sm text-[var(--text-secondary)]">{s.vehicle?.regNumber || '—'}</td>
+                    <td className="text-sm text-[var(--text-muted)]">{formatDate(s.date)}</td>
+                    <td className="text-xs text-[var(--text-secondary)]">{formatDateTime(s.startTime)}</td>
+                    <td className="text-xs text-[var(--text-muted)]">{s.endTime ? formatDateTime(s.endTime) : '—'}</td>
+                    <td className="mono font-medium text-[var(--text-primary)]">{s.hoursWorked != null ? `${Math.floor(s.hoursWorked)}h ${Math.round((s.hoursWorked % 1) * 60)}m` : '—'}</td>
                     <td>{s.overtime > 0 ? <span className="text-amber-400 font-bold text-sm">+{s.overtime}h OT</span> : <span className="text-slate-600">—</span>}</td>
                     <td><StatusBadge status={s.status} /></td>
                     <td>

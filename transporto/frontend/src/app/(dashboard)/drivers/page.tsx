@@ -49,27 +49,27 @@ export default function DriversPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-slate-100">Drivers</h2>
-          <p className="text-sm text-slate-500 mt-0.5">Manage fleet drivers</p>
+          <h2 className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Drivers</h2>
+          <p className="text-sm text-[var(--text-secondary)] mt-0.5">Manage fleet drivers</p>
         </div>
         <button onClick={() => { setForm({}); setEditDriver(null); setModalOpen(true); }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors">
+          className="flex items-center gap-2 px-4 py-2.5 bg-[var(--primary-600)] hover:bg-[var(--primary-700)] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
           <Plus className="w-4 h-4" /> Add Driver
         </button>
       </div>
 
-      <div className="bg-[#111827] border border-[#1e293b] rounded-xl p-4 flex flex-wrap gap-3">
+      <div className="bg-white border border-[var(--border-light)] rounded-xl p-4 shadow-[var(--shadow-card)] flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search name, phone, license..." style={{ paddingLeft: '36px' }} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search name, phone, license..." className="h-10 pl-10 rounded-lg border border-[var(--border-default)] text-sm w-full" />
         </div>
-        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="w-40">
+        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="h-10 w-40 rounded-lg border border-[var(--border-default)] text-sm">
           <option value="">All Statuses</option>
           {STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
         </select>
       </div>
 
-      <div className="bg-[#111827] border border-[#1e293b] rounded-xl overflow-hidden">
+      <div className="bg-white border border-[var(--border-light)] rounded-xl overflow-hidden shadow-[var(--shadow-card)]">
         {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message="No drivers found" /> : (
           <div className="overflow-x-auto">
             <table>
@@ -81,31 +81,31 @@ export default function DriversPage() {
                   <tr key={d.id}>
                     <td>
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-semibold text-sm flex-shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-[var(--primary-100)] flex items-center justify-center text-[var(--primary-600)] font-semibold text-sm flex-shrink-0">
                           {d.name?.charAt(0)}
                         </div>
                         <div>
-                          <p className="font-medium text-slate-200 text-sm">{d.name}</p>
-                          <p className="text-xs text-slate-500">{d.city || '—'}</p>
+                          <p className="font-medium text-[var(--text-primary)] text-sm">{d.name}</p>
+                          <p className="text-xs text-[var(--text-muted)]">{d.city || '—'}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="font-mono text-sm text-slate-300">{d.phone}</td>
-                    <td className="font-mono text-xs text-slate-400">{d.licenseNumber}</td>
-                    <td className="text-slate-300">{d.experience} yrs</td>
+                    <td className="mono text-sm text-[var(--text-secondary)]">{d.phone}</td>
+                    <td className="mono text-xs text-[var(--text-secondary)]">{d.licenseNumber}</td>
+                    <td className="text-[var(--text-secondary)]">{d.experience ?? '—'} yrs</td>
                     <td>
-                      <div className="flex items-center gap-1 text-amber-400">
-                        <Star className="w-3 h-3 fill-current" />
-                        <span className="text-sm font-medium">{d.rating?.toFixed(1)}</span>
+                      <div className="flex items-center gap-1 text-amber-600">
+                        <Star className="w-3.5 h-3.5 fill-current" />
+                        <span className="text-sm font-medium mono">{(d.rating ?? 0).toFixed(1)}</span>
                       </div>
                     </td>
                     <td><StatusBadge status={d.status} /></td>
-                    <td className="text-slate-400 text-xs font-mono">{d.assignments?.[0]?.vehicle?.regNumber || '—'}</td>
+                    <td className="text-[var(--text-muted)] text-xs mono">{d.assignments?.[0]?.vehicle?.regNumber || '—'}</td>
                     <td>
                       <div className="flex items-center gap-1">
-                        <Link href={`/drivers/${d.id}`} className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"><Eye className="w-4 h-4" /></Link>
-                        <button onClick={() => { setForm({ ...d }); setEditDriver(d); setModalOpen(true); }} className="p-1.5 text-slate-500 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
-                        <button onClick={() => setDeleteId(d.id)} className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                        <Link href={`/drivers/${d.id}`} className="p-2 text-[var(--primary-600)] hover:bg-[var(--primary-50)] rounded-lg transition-colors"><Eye className="w-4 h-4" /></Link>
+                        <button onClick={() => { setForm({ ...d }); setEditDriver(d); setModalOpen(true); }} className="p-2 text-[var(--text-muted)] hover:bg-[var(--bg-table-header)] rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => setDeleteId(d.id)} className="p-2 text-[var(--text-muted)] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -118,28 +118,28 @@ export default function DriversPage() {
       </div>
 
       <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditDriver(null); }} title={editDriver ? 'Edit Driver' : 'Add Driver'} size="lg">
-        <div className="p-5 space-y-4">
+        <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             {[['name','Name *'],['phone','Phone *'],['licenseNumber','License Number *'],['licenseType','License Type'],['experience','Experience (years)'],['salary','Salary (₹)'],['bloodGroup','Blood Group'],['city','City'],['state','State'],['emergencyContact','Emergency Contact'],['emergencyName','Emergency Contact Name']].map(([n, l]) => (
               <div key={n}>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5">{l}</label>
-                <input value={form[n] || ''} onChange={f(n)} />
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">{l}</label>
+                <input value={form[n] || ''} onChange={f(n)} className="border border-[var(--border-default)] rounded-lg" />
               </div>
             ))}
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">License Expiry *</label>
-              <input type="date" value={form.licenseExpiry ? form.licenseExpiry.split('T')[0] : ''} onChange={f('licenseExpiry')} />
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">License Expiry *</label>
+              <input type="date" value={form.licenseExpiry ? form.licenseExpiry.split('T')[0] : ''} onChange={f('licenseExpiry')} className="border border-[var(--border-default)] rounded-lg" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">Status</label>
-              <select value={form.status || ''} onChange={f('status')}>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Status</label>
+              <select value={form.status || ''} onChange={f('status')} className="border border-[var(--border-default)] rounded-lg">
                 {STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
               </select>
             </div>
           </div>
           <div className="flex gap-3 pt-2">
-            <button onClick={() => setModalOpen(false)} className="flex-1 py-2.5 text-sm font-medium text-slate-300 bg-[#1a2035] hover:bg-[#243050] rounded-lg">Cancel</button>
-            <button onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending} className="flex-1 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg">
+            <button onClick={() => setModalOpen(false)} className="flex-1 py-2.5 text-sm font-medium text-[var(--text-secondary)] border border-[var(--border-default)] rounded-lg hover:bg-[var(--bg-table-header)]">Cancel</button>
+            <button onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending} className="flex-1 py-2.5 text-sm font-semibold text-white bg-[var(--primary-600)] hover:bg-[var(--primary-700)] disabled:opacity-50 rounded-lg">
               {saveMutation.isPending ? 'Saving...' : editDriver ? 'Update' : 'Create'}
             </button>
           </div>
