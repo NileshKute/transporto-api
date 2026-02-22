@@ -1,0 +1,753 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  DRIVER
+  COLD_STORAGE_OPERATOR
+  VIEWER
+}
+
+enum VehicleType {
+  TRUCK
+  MINI_TRUCK
+  TRAILER
+  REEFER_TRUCK
+  TANKER
+  PICKUP
+  VAN
+  TEMPO
+  CONTAINER
+}
+
+enum FuelType {
+  DIESEL
+  PETROL
+  CNG
+  ELECTRIC
+  HYBRID
+}
+
+enum VehicleStatus {
+  ACTIVE
+  IN_MAINTENANCE
+  IDLE
+  BREAKDOWN
+  SOLD
+  DECOMMISSIONED
+}
+
+enum DriverStatus {
+  AVAILABLE
+  ON_TRIP
+  ON_LEAVE
+  OFF_DUTY
+  TERMINATED
+}
+
+enum TripStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum LoadStatus {
+  LOADED
+  EMPTY
+  PARTIAL
+}
+
+enum EntrySource {
+  MANUAL
+  WHATSAPP
+  MOBILE_APP
+  AUTO_SENSOR
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  CARD
+  CREDIT
+  COMPANY_ACCOUNT
+}
+
+enum MaintenanceType {
+  SCHEDULED_SERVICE
+  ENGINE_REPAIR
+  TIRE_REPLACEMENT
+  BRAKE_SERVICE
+  OIL_CHANGE
+  ELECTRICAL
+  BODY_WORK
+  AC_REPAIR
+  CLUTCH
+  GEAR_BOX
+  SUSPENSION
+  BATTERY
+  RADIATOR
+  OTHER
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum EmergencyType {
+  PUNCTURE
+  ACCIDENT
+  BREAKDOWN
+  ENGINE_FAILURE
+  FUEL_EMPTY
+  ELECTRICAL_FAILURE
+  BRAKE_FAILURE
+  FIRE
+  THEFT
+  OTHER
+}
+
+enum EmergencyStatus {
+  PENDING
+  ACKNOWLEDGED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum InsuranceType {
+  COMPREHENSIVE
+  THIRD_PARTY
+  ZERO_DEP
+  OD_ONLY
+}
+
+enum InsuranceStatus {
+  ACTIVE
+  EXPIRING_SOON
+  EXPIRED
+  CLAIMED
+  CANCELLED
+}
+
+enum DocumentType {
+  RC
+  FITNESS
+  PERMIT
+  PUC
+  TAX_RECEIPT
+  INSURANCE_COPY
+  ROAD_TAX
+  NATIONAL_PERMIT
+  STATE_PERMIT
+  OTHER
+}
+
+enum ColdStorageType {
+  COLD_ROOM
+  CHILLER
+  DEEP_FREEZER
+  BLAST_FREEZER
+  RIPENING_CHAMBER
+}
+
+enum ColdStorageStatus {
+  NORMAL
+  WARNING
+  CRITICAL
+  OFFLINE
+  MAINTENANCE
+}
+
+enum ShiftStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  ON_LEAVE
+  HOLIDAY
+}
+
+enum MessageStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+enum NotificationType {
+  INSURANCE_EXPIRY
+  LICENSE_EXPIRY
+  FITNESS_EXPIRY
+  MAINTENANCE_DUE
+  EMERGENCY_REPORTED
+  COLD_STORAGE_ALERT
+  TRIP_COMPLETED
+  FUEL_ANOMALY
+  DOCUMENT_EXPIRY
+  SYSTEM
+}
+
+// ==================== MODELS ====================
+
+model User {
+  id        String   @id @default(uuid())
+  name      String   @db.VarChar(100)
+  email     String   @unique @db.VarChar(150)
+  phone     String?  @unique @db.VarChar(20)
+  password  String
+  role      UserRole @default(DRIVER)
+  avatarUrl String?
+  isActive  Boolean  @default(true)
+  lastLogin DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  driver    Driver?
+  auditLogs AuditLog[]
+  sessions  Session[]
+
+  @@index([email])
+  @@index([phone])
+  @@map("users")
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String   @unique
+  deviceInfo String?
+  ipAddress  String?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@map("sessions")
+}
+
+model Vehicle {
+  id              String        @id @default(uuid())
+  regNumber       String        @unique @db.VarChar(20)
+  type            VehicleType
+  make            String        @db.VarChar(50)
+  model           String        @db.VarChar(50)
+  year            Int
+  fuelType        FuelType      @default(DIESEL)
+  status          VehicleStatus @default(ACTIVE)
+  currentKm       Float         @default(0)
+  chassisNumber   String?       @db.VarChar(50)
+  engineNumber    String?       @db.VarChar(50)
+  color           String?       @db.VarChar(30)
+  loadCapacityKg  Float?
+  numTires        Int?
+  tankCapacityL   Float?
+  purchaseDate    DateTime?
+  purchasePrice   Float?
+  photoUrl        String?
+  notes           String?
+  isDeleted       Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  trips        Trip[]
+  fuelEntries  FuelEntry[]
+  maintenance  Maintenance[]
+  emergencies  Emergency[]
+  insurance    Insurance[]
+  shifts       Shift[]
+  documents    VehicleDocument[]
+  assignments  DriverVehicleAssignment[]
+
+  @@index([regNumber])
+  @@index([status])
+  @@index([type])
+  @@map("vehicles")
+}
+
+model Driver {
+  id               String       @id @default(uuid())
+  userId           String?      @unique
+  user             User?        @relation(fields: [userId], references: [id])
+  name             String       @db.VarChar(100)
+  phone            String       @unique @db.VarChar(20)
+  altPhone         String?      @db.VarChar(20)
+  licenseNumber    String       @unique @db.VarChar(30)
+  licenseType      String?      @db.VarChar(20)
+  licenseExpiry    DateTime
+  dateOfBirth      DateTime?
+  bloodGroup       String?      @db.VarChar(5)
+  experience       Int          @default(0)
+  status           DriverStatus @default(AVAILABLE)
+  address          String?
+  city             String?      @db.VarChar(50)
+  state            String?      @db.VarChar(50)
+  pincode          String?      @db.VarChar(10)
+  emergencyContact String?      @db.VarChar(20)
+  emergencyName    String?      @db.VarChar(100)
+  photoUrl         String?
+  aadharNumber     String?      @db.VarChar(20)
+  panNumber        String?      @db.VarChar(15)
+  bankAccount      String?      @db.VarChar(20)
+  bankIfsc         String?      @db.VarChar(15)
+  salary           Float?
+  rating           Float        @default(4.0)
+  totalTrips       Int          @default(0)
+  totalKm          Float        @default(0)
+  joiningDate      DateTime     @default(now())
+  isDeleted        Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  trips            Trip[]
+  fuelEntries      FuelEntry[]
+  emergencies      Emergency[]
+  shifts           Shift[]
+  whatsappMessages WhatsAppMessage[]
+  assignments      DriverVehicleAssignment[]
+  attendances      DriverAttendance[]
+
+  @@index([phone])
+  @@index([licenseNumber])
+  @@index([status])
+  @@map("drivers")
+}
+
+model DriverVehicleAssignment {
+  id           String    @id @default(uuid())
+  driverId     String
+  driver       Driver    @relation(fields: [driverId], references: [id])
+  vehicleId    String
+  vehicle      Vehicle   @relation(fields: [vehicleId], references: [id])
+  assignedAt   DateTime  @default(now())
+  unassignedAt DateTime?
+  isCurrent    Boolean   @default(true)
+
+  @@index([driverId, isCurrent])
+  @@index([vehicleId, isCurrent])
+  @@map("driver_vehicle_assignments")
+}
+
+model DriverAttendance {
+  id       String           @id @default(uuid())
+  driverId String
+  driver   Driver           @relation(fields: [driverId], references: [id])
+  date     DateTime         @db.Date
+  status   AttendanceStatus @default(PRESENT)
+  checkIn  DateTime?
+  checkOut DateTime?
+  notes    String?
+
+  @@unique([driverId, date])
+  @@map("driver_attendance")
+}
+
+model Trip {
+  id            String     @id @default(uuid())
+  tripNumber    String     @unique @db.VarChar(20)
+  vehicleId     String
+  vehicle       Vehicle    @relation(fields: [vehicleId], references: [id])
+  driverId      String
+  driver        Driver     @relation(fields: [driverId], references: [id])
+  date          DateTime   @db.Date
+  startKm       Float
+  endKm         Float?
+  distanceKm    Float?
+  startLocation String     @db.VarChar(100)
+  endLocation   String?    @db.VarChar(100)
+  startLat      Float?
+  startLng      Float?
+  endLat        Float?
+  endLng        Float?
+  status        TripStatus @default(IN_PROGRESS)
+  loadStatus    LoadStatus @default(LOADED)
+  cargoType     String?
+  cargoWeight   Float?
+  cargoUnit     String?
+  clientName    String?
+  lrNumber      String?
+  billAmount    Float?
+  tollAmount    Float?
+  otherExpenses Float?
+  startTime     DateTime?
+  endTime       DateTime?
+  notes         String?
+  source        EntrySource @default(MANUAL)
+
+  expenses TripExpense[]
+
+  @@index([vehicleId])
+  @@index([driverId])
+  @@index([date])
+  @@index([status])
+  @@index([tripNumber])
+  @@map("trips")
+}
+
+model TripExpense {
+  id          String   @id @default(uuid())
+  tripId      String
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  type        String   @db.VarChar(50)
+  amount      Float
+  description String?
+  receiptUrl  String?
+  date        DateTime @db.Date
+
+  @@map("trip_expenses")
+}
+
+model FuelEntry {
+  id           String      @id @default(uuid())
+  entryNumber  String      @unique @db.VarChar(20)
+  vehicleId    String
+  vehicle      Vehicle     @relation(fields: [vehicleId], references: [id])
+  driverId     String
+  driver       Driver      @relation(fields: [driverId], references: [id])
+  date         DateTime    @db.Date
+  fuelType     FuelType    @default(DIESEL)
+  liters       Float
+  ratePerLiter Float?
+  totalCost    Float
+  odometer     Float
+  fuelStation  String?     @db.VarChar(150)
+  location     String?
+  isFull       Boolean     @default(true)
+  receiptUrl   String?
+  receiptNo    String?
+  paymentMode  PaymentMode @default(CASH)
+  source       EntrySource @default(MANUAL)
+  notes        String?
+  createdAt    DateTime    @default(now())
+
+  @@index([vehicleId])
+  @@index([driverId])
+  @@index([date])
+  @@map("fuel_entries")
+}
+
+model FuelAverage {
+  id          String   @id @default(uuid())
+  vehicleId   String
+  period      String   @db.VarChar(10)
+  totalKm     Float
+  totalLiters Float
+  avgKmPerL   Float
+  totalCost   Float
+  costPerKm   Float
+  entries     Int
+  calculatedAt DateTime @default(now())
+
+  @@unique([vehicleId, period])
+  @@map("fuel_averages")
+}
+
+model Maintenance {
+  id                String            @id @default(uuid())
+  vehicleId         String
+  vehicle           Vehicle           @relation(fields: [vehicleId], references: [id])
+  type              MaintenanceType
+  subType           String?           @db.VarChar(50)
+  description       String?
+  cost              Float             @default(0)
+  laborCost         Float?
+  partsCost         Float?
+  date              DateTime          @db.Date
+  completedDate     DateTime?
+  status            MaintenanceStatus @default(SCHEDULED)
+  priority          Priority          @default(MEDIUM)
+  garage            String?
+  garagePhone       String?
+  mechanicName      String?
+  odometerAtService Float?
+  nextDueDate       DateTime?
+  nextDueKm         Float?
+  warrantyExpiry    DateTime?
+  invoiceNo         String?
+  invoiceUrl        String?
+  photoUrls         String[]
+  notes             String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([vehicleId])
+  @@index([status])
+  @@index([nextDueDate])
+  @@map("maintenance")
+}
+
+model Emergency {
+  id            String          @id @default(uuid())
+  vehicleId     String
+  vehicle       Vehicle         @relation(fields: [vehicleId], references: [id])
+  driverId      String
+  driver        Driver          @relation(fields: [driverId], references: [id])
+  type          EmergencyType
+  description   String
+  location      String?         @db.VarChar(200)
+  latitude      Float?
+  longitude     Float?
+  date          DateTime        @db.Date
+  time          String?         @db.VarChar(10)
+  status        EmergencyStatus @default(PENDING)
+  priority      Priority        @default(HIGH)
+  photoUrls     String[]
+  estimatedCost Float?
+  actualCost    Float?
+  source        EntrySource     @default(MANUAL)
+  resolvedAt    DateTime?
+  resolvedBy    String?
+  resolution    String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([vehicleId])
+  @@index([driverId])
+  @@index([status])
+  @@index([date])
+  @@map("emergencies")
+}
+
+model Insurance {
+  id           String          @id @default(uuid())
+  vehicleId    String
+  vehicle      Vehicle         @relation(fields: [vehicleId], references: [id])
+  provider     String          @db.VarChar(100)
+  policyNumber String          @unique @db.VarChar(50)
+  type         InsuranceType
+  coverAmount  Float?
+  premium      Float
+  startDate    DateTime        @db.Date
+  endDate      DateTime        @db.Date
+  status       InsuranceStatus @default(ACTIVE)
+  agentName    String?
+  agentPhone   String?
+  documentUrl  String?
+  claimHistory Json?
+  notes        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([vehicleId])
+  @@index([endDate])
+  @@index([status])
+  @@map("insurance")
+}
+
+model VehicleDocument {
+  id          String       @id @default(uuid())
+  vehicleId   String
+  vehicle     Vehicle      @relation(fields: [vehicleId], references: [id])
+  type        DocumentType
+  documentNo  String?
+  documentUrl String
+  issuedDate  DateTime?
+  expiryDate  DateTime?
+  notes       String?
+  createdAt   DateTime     @default(now())
+
+  @@index([vehicleId])
+  @@index([expiryDate])
+  @@map("vehicle_documents")
+}
+
+model ColdStorageUnit {
+  id            String            @id @default(uuid())
+  name          String            @db.VarChar(100)
+  type          ColdStorageType
+  targetTemp    Float
+  minTemp       Float?
+  maxTemp       Float?
+  capacityTotal Float
+  capacityUnit  String            @default("Tons")
+  location      String?
+  status        ColdStorageStatus @default(NORMAL)
+  sensorId      String?           @db.VarChar(50)
+  isActive      Boolean           @default(true)
+  notes         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  temperatureLogs TemperatureLog[]
+  storageClients  StorageClient[]
+  alerts          ColdStorageAlert[]
+
+  @@map("cold_storage_units")
+}
+
+model TemperatureLog {
+  id          String          @id @default(uuid())
+  unitId      String
+  unit        ColdStorageUnit @relation(fields: [unitId], references: [id])
+  temperature Float
+  humidity    Float?
+  doorStatus  String?
+  powerStatus String?
+  recordedBy  String?         @db.VarChar(50)
+  recordedAt  DateTime        @default(now())
+
+  @@index([unitId, recordedAt])
+  @@index([recordedAt])
+  @@map("temperature_logs")
+}
+
+model StorageClient {
+  id          String          @id @default(uuid())
+  unitId      String
+  unit        ColdStorageUnit @relation(fields: [unitId], references: [id])
+  clientName  String          @db.VarChar(100)
+  clientPhone String?         @db.VarChar(20)
+  productType String?         @db.VarChar(100)
+  spaceUsed   Float
+  ratePerUnit Float?
+  startDate   DateTime        @db.Date
+  endDate     DateTime?       @db.Date
+  isActive    Boolean         @default(true)
+  notes       String?
+  createdAt   DateTime        @default(now())
+
+  @@map("storage_clients")
+}
+
+model ColdStorageAlert {
+  id          String          @id @default(uuid())
+  unitId      String
+  unit        ColdStorageUnit @relation(fields: [unitId], references: [id])
+  alertType   String          @db.VarChar(50)
+  message     String
+  temperature Float?
+  severity    Priority        @default(HIGH)
+  isResolved  Boolean         @default(false)
+  resolvedAt  DateTime?
+  resolvedBy  String?
+  createdAt   DateTime        @default(now())
+
+  @@index([unitId, isResolved])
+  @@index([createdAt])
+  @@map("cold_storage_alerts")
+}
+
+model Shift {
+  id          String      @id @default(uuid())
+  driverId    String
+  driver      Driver      @relation(fields: [driverId], references: [id])
+  vehicleId   String?
+  vehicle     Vehicle?    @relation(fields: [vehicleId], references: [id])
+  date        DateTime    @db.Date
+  startTime   DateTime
+  endTime     DateTime?
+  status      ShiftStatus @default(SCHEDULED)
+  hoursWorked Float?
+  overtime    Float?
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([driverId, date])
+  @@index([vehicleId])
+  @@index([date])
+  @@map("shifts")
+}
+
+model WhatsAppMessage {
+  id          String        @id @default(uuid())
+  driverId    String?
+  driver      Driver?       @relation(fields: [driverId], references: [id])
+  fromPhone   String        @db.VarChar(20)
+  toPhone     String?       @db.VarChar(20)
+  direction   String        @default("INCOMING")
+  message     String
+  mediaUrl    String?
+  parsedType  String?
+  parsedData  Json?
+  confidence  Float?
+  status      MessageStatus @default(RECEIVED)
+  errorReason String?
+  processedAt DateTime?
+  twilioSid   String?
+  receivedAt  DateTime      @default(now())
+
+  @@index([driverId])
+  @@index([fromPhone])
+  @@index([receivedAt])
+  @@index([status])
+  @@map("whatsapp_messages")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  type      NotificationType
+  title     String           @db.VarChar(200)
+  message   String
+  entity    String?          @db.VarChar(50)
+  entityId  String?
+  priority  Priority         @default(MEDIUM)
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  forRole   UserRole?
+  forUserId String?
+  createdAt DateTime         @default(now())
+
+  @@index([forUserId, isRead])
+  @@index([forRole, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String   @db.VarChar(20)
+  entity    String   @db.VarChar(50)
+  entityId  String?  @db.VarChar(50)
+  oldData   Json?
+  newData   Json?
+  ipAddress String?  @db.VarChar(45)
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Setting {
+  id    String @id @default(uuid())
+  key   String @unique @db.VarChar(50)
+  value String
+  group String @db.VarChar(30)
+  label String @db.VarChar(100)
+
+  @@map("settings")
+}
