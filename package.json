@@ -16,7 +16,6 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "ts-node prisma/seed.ts",
     "prisma:studio": "prisma studio",
-    "postinstall": "npx prisma generate"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.0",
