@@ -44,21 +44,21 @@ export default function MaintenancePage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div><h2 className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Maintenance</h2><p className="text-sm text-[var(--text-secondary)]">Vehicle maintenance records</p></div>
-        <button onClick={() => { setForm({ status: 'SCHEDULED', priority: 'MEDIUM' }); setEditItem(null); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--primary-600)] hover:bg-[var(--primary-700)] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+        <div><h2 className="text-2xl font-bold text-[#0f172a]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Maintenance</h2><p className="text-sm text-[#475569]">Vehicle maintenance records</p></div>
+        <button onClick={() => { setForm({ status: 'SCHEDULED', priority: 'MEDIUM' }); setEditItem(null); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
           <Plus className="w-4 h-4" /> Add Record
         </button>
       </div>
 
-      <div className="flex gap-1 bg-white border border-[var(--border-light)] rounded-xl p-1 w-fit shadow-[var(--shadow-card)]">
+      <div className="flex gap-1 bg-white border border-[#e2e8f0] rounded-xl p-1 w-fit shadow-sm">
         {(['all', 'due'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${tab === t ? 'bg-[var(--primary-600)] text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-table-header)]'}`}>
+          <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${tab === t ? 'bg-[#2563eb] text-white' : 'text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9]'}`}>
             {t === 'all' ? <><Wrench className="w-3.5 h-3.5" /> All Records</> : <><AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Due Soon {dueData?.length > 0 && <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{dueData.length}</span>}</>}
           </button>
         ))}
       </div>
 
-      <div className="bg-white border border-[var(--border-light)] rounded-xl overflow-hidden shadow-[var(--shadow-card)]">
+      <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden shadow-sm">
         {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message={tab === 'due' ? 'No maintenance due soon' : 'No maintenance records'} /> : (
           <div className="overflow-x-auto">
             <table>
@@ -66,15 +66,15 @@ export default function MaintenancePage() {
               <tbody>
                 {data.data.map((m: any) => (
                   <tr key={m.id}>
-                    <td className="mono text-sm text-[var(--primary-600)]">{m.vehicle?.regNumber}</td>
-                    <td><span className="text-xs bg-[var(--bg-table-header)] text-[var(--text-secondary)] px-2 py-1 rounded font-medium">{m.type?.replace(/_/g,' ')}</span></td>
-                    <td className="text-[var(--text-secondary)] text-xs max-w-[160px] truncate">{m.description || '—'}</td>
-                    <td className="mono font-semibold text-[var(--text-primary)]">{formatCurrency(m.cost)}</td>
+                    <td className="mono text-sm text-[#2563eb]">{m.vehicle?.regNumber}</td>
+                    <td><span className="text-xs bg-[#f1f5f9] text-[#475569] px-2 py-1 rounded font-medium">{m.type?.replace(/_/g,' ')}</span></td>
+                    <td className="text-[#475569] text-xs max-w-[160px] truncate">{m.description || '—'}</td>
+                    <td className="mono font-semibold text-[#0f172a]">{formatCurrency(m.cost)}</td>
                     <td><StatusBadge status={m.status} /></td>
                     <td><span className={`text-xs font-semibold ${priorityColor[m.priority]}`}>● {m.priority}</span></td>
-                    <td className="text-xs text-[var(--text-muted)]">{formatDate(m.date)}</td>
+                    <td className="text-xs text-[#94a3b8]">{formatDate(m.date)}</td>
                     <td className="text-xs text-amber-600">{m.nextDueDate ? formatDate(m.nextDueDate) : '—'}</td>
-                    <td className="text-xs text-[var(--text-muted)]">{m.garage || '—'}</td>
+                    <td className="text-xs text-[#94a3b8]">{m.garage || '—'}</td>
                     <td>
                       <button onClick={() => { setForm({ ...m, date: m.date?.split('T')[0], nextDueDate: m.nextDueDate?.split('T')[0] }); setEditItem(m); setModalOpen(true); }}
                         className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 bg-blue-500/10 rounded-lg">Edit</button>

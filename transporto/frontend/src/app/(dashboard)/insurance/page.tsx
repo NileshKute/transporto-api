@@ -44,28 +44,28 @@ export default function InsurancePage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div><h2 className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Insurance</h2><p className="text-sm text-[var(--text-secondary)]">Vehicle insurance policies</p></div>
-        <button onClick={() => { setForm({ type: 'COMPREHENSIVE', status: 'ACTIVE' }); setEditItem(null); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--primary-600)] hover:bg-[var(--primary-700)] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+        <div><h2 className="text-2xl font-bold text-[#0f172a]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Insurance</h2><p className="text-sm text-[#475569]">Vehicle insurance policies</p></div>
+        <button onClick={() => { setForm({ type: 'COMPREHENSIVE', status: 'ACTIVE' }); setEditItem(null); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
           <Plus className="w-4 h-4" /> Add Policy
         </button>
       </div>
 
       {expiring?.length > 0 && (
-        <div className="bg-[var(--warning-bg)] border-l-4 border-amber-500 rounded-xl p-4 flex items-center gap-3">
+        <div className="bg-amber-50 border-l-4 border-amber-500 rounded-xl p-4 flex items-center gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-          <p className="text-sm text-[var(--text-primary)]"><strong>{expiring.length} insurance {expiring.length === 1 ? 'policy' : 'policies'}</strong> expiring within 30 days.</p>
-          <Link href="#table" className="text-sm font-semibold text-[var(--primary-600)] hover:underline">View →</Link>
+          <p className="text-sm text-[#0f172a]"><strong>{expiring.length} insurance {expiring.length === 1 ? 'policy' : 'policies'}</strong> expiring within 30 days.</p>
+          <Link href="#table" className="text-sm font-semibold text-[#2563eb] hover:underline">View →</Link>
         </div>
       )}
 
-      <div className="bg-white border border-[var(--border-light)] rounded-xl p-4 shadow-[var(--shadow-card)] flex gap-3">
-        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="h-10 w-48 rounded-lg border border-[var(--border-default)] text-sm">
+      <div className="bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-sm flex gap-3">
+        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="h-10 w-48 rounded-lg border border-[#cbd5e1] text-sm">
           <option value="">All Statuses</option>
           {I_STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
         </select>
       </div>
 
-      <div id="table" className="bg-white border border-[var(--border-light)] rounded-xl overflow-hidden shadow-[var(--shadow-card)]">
+      <div id="table" className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden shadow-sm">
         {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message="No insurance policies" /> : (
           <div className="overflow-x-auto">
             <table>
@@ -73,13 +73,13 @@ export default function InsurancePage() {
               <tbody>
                 {data.data.map((i: any) => (
                   <tr key={i.id} className={rowBg(i.status)}>
-                    <td className="mono text-sm font-semibold text-[var(--text-primary)]">{i.vehicle?.regNumber}</td>
-                    <td className="font-medium text-[var(--text-primary)]">{i.provider}</td>
-                    <td className="mono text-sm text-[var(--text-secondary)]">{i.policyNumber}</td>
-                    <td><span className="text-xs bg-[var(--bg-table-header)] text-[var(--text-secondary)] px-2 py-0.5 rounded font-medium">{i.type?.replace(/_/g,' ')}</span></td>
-                    <td className="mono font-semibold text-[var(--success)]">{formatCurrency(i.premium)}</td>
-                    <td className="mono text-[var(--text-secondary)]">{i.coverAmount ? formatCurrency(i.coverAmount) : '—'}</td>
-                    <td className="text-xs text-[var(--text-muted)]">{formatDate(i.startDate)}</td>
+                    <td className="mono text-sm font-semibold text-[#0f172a]">{i.vehicle?.regNumber}</td>
+                    <td className="font-medium text-[#0f172a]">{i.provider}</td>
+                    <td className="mono text-sm text-[#475569]">{i.policyNumber}</td>
+                    <td><span className="text-xs bg-[#f1f5f9] text-[#475569] px-2 py-0.5 rounded font-medium">{i.type?.replace(/_/g,' ')}</span></td>
+                    <td className="mono font-semibold text-emerald-600">{formatCurrency(i.premium)}</td>
+                    <td className="mono text-[#475569]">{i.coverAmount ? formatCurrency(i.coverAmount) : '—'}</td>
+                    <td className="text-xs text-[#94a3b8]">{formatDate(i.startDate)}</td>
                     <td className={`text-xs font-medium ${i.status === 'EXPIRED' ? 'text-red-400' : i.status === 'EXPIRING_SOON' ? 'text-amber-400' : 'text-slate-400'}`}>{formatDate(i.endDate)}</td>
                     <td><StatusBadge status={i.status} /></td>
                     <td className="text-xs text-slate-400">{i.agentName || '—'}</td>

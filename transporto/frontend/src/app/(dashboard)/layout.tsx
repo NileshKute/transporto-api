@@ -43,14 +43,14 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
   const { user, logout } = useAuth();
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-sidebar)]">
-      <div className="flex items-center justify-between px-5 py-5 border-b border-[var(--bg-sidebar-hover)]">
+    <div className="flex flex-col h-full bg-[#0f2744]">
+      <div className="flex items-center justify-between px-5 py-5 border-b border-[#1e3a5f]">
         <div className="flex items-center gap-3">
           <span className="text-2xl">🚛</span>
           <span className="text-lg font-bold text-white tracking-[0.2em]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>TRANSPORTO</span>
         </div>
         {onClose && (
-          <button onClick={onClose} className="p-2 text-[var(--text-on-sidebar)] hover:text-white lg:hidden rounded-lg">
+          <button onClick={onClose} className="p-2 text-[#94a3b8] hover:text-white lg:hidden rounded-lg">
             <X className="w-4 h-4" />
           </button>
         )}
@@ -60,7 +60,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
         {navGroups.map((group) => (
           <div key={group.label || 'main'}>
             {group.label && (
-              <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider px-3 mb-2">{group.label}</p>
+              <p className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider px-3 mb-2">{group.label}</p>
             )}
             <div className="space-y-0.5">
               {group.items.map(({ href, label, icon: Icon }) => {
@@ -72,8 +72,8 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
                     onClick={onClose}
                     className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all mx-1 h-11 ${
                       active
-                        ? 'bg-[var(--bg-sidebar-active)] text-[var(--text-on-sidebar-active)] font-semibold border-l-3 border-[var(--primary-400)]'
-                        : 'text-[var(--text-on-sidebar)] hover:bg-[var(--bg-sidebar-hover)] hover:text-[#e2e8f0]'
+                        ? 'bg-[#2563eb] text-white font-semibold border-l-3 border-[#60a5fa]'
+                        : 'text-[#94a3b8] hover:bg-[#1e3a5f] hover:text-[#e2e8f0]'
                     }`}
                     style={active ? { borderLeftWidth: '3px' } : undefined}
                   >
@@ -87,9 +87,9 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
         ))}
       </nav>
 
-      <div className="p-3 border-t border-[var(--bg-sidebar-hover)]">
+      <div className="p-3 border-t border-[#1e3a5f]">
         <div className="flex items-center gap-3 px-2 py-3 mb-1">
-          <div className="w-10 h-10 rounded-full bg-[var(--primary-500)] flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+          <div className="w-10 h-10 rounded-full bg-[#3b82f6] flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
             {user?.name?.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
@@ -101,7 +101,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
         </div>
         <button
           onClick={logout}
-          className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--text-on-sidebar)] hover:text-red-400 rounded-lg transition-colors"
+          className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[#94a3b8] hover:text-red-400 rounded-lg transition-colors"
         >
           <LogOut className="w-4 h-4" />
           Sign Out
@@ -123,12 +123,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[var(--bg-body)] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f0f4f8] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 bg-[var(--primary-500)] rounded-xl flex items-center justify-center mx-auto mb-4 animate-pulse">
+          <div className="w-12 h-12 bg-[#3b82f6] rounded-xl flex items-center justify-center mx-auto mb-4 animate-pulse">
             <Truck className="w-6 h-6 text-white" />
           </div>
-          <p className="text-[var(--text-muted)] text-sm">Loading...</p>
+          <p className="text-[#94a3b8] text-sm">Loading...</p>
         </div>
       </div>
     );
@@ -141,8 +141,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const breadcrumb = pathname === '/dashboard' ? 'Overview' : pageTitle;
 
   return (
-    <div className="flex h-screen bg-[var(--bg-body)] overflow-hidden">
-      <aside className="hidden lg:block w-[260px] flex-shrink-0 border-r border-[var(--bg-sidebar-hover)]">
+    <div className="flex h-screen bg-[#f0f4f8] overflow-hidden">
+      <aside className="hidden lg:block w-[260px] flex-shrink-0 border-r border-[#1e3a5f]">
         <Sidebar />
       </aside>
 
@@ -156,33 +156,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="h-16 flex-shrink-0 bg-[var(--bg-header)] border-b border-[var(--border-light)] shadow-sm px-6 flex items-center justify-between">
+        <header className="h-16 flex-shrink-0 bg-white border-b border-[#e2e8f0] shadow-sm px-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-table-header)] rounded-lg transition-colors"
+              className="lg:hidden p-2 text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] rounded-lg transition-colors"
             >
               <Menu className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{pageTitle}</h1>
-              <p className="text-xs text-[var(--text-muted)] mt-0.5">Dashboard &gt; {breadcrumb}</p>
+              <h1 className="text-xl font-bold text-[#0f172a]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{pageTitle}</h1>
+              <p className="text-xs text-[#94a3b8] mt-0.5">Dashboard &gt; {breadcrumb}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <div className="hidden sm:block relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
               <input
                 type="search"
                 placeholder="Search..."
-                className="w-60 h-9 pl-9 pr-4 rounded-full bg-[var(--bg-body)] border border-[var(--border-light)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-focus)]"
+                className="w-60 h-9 pl-9 pr-4 rounded-full bg-[#f0f4f8] border border-[#e2e8f0] text-sm text-[#0f172a] placeholder:text-[#94a3b8] focus:outline-none focus:border-[#3b82f6]"
               />
             </div>
-            <button className="relative p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-table-header)] rounded-lg transition-colors">
+            <button className="relative p-2 text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] rounded-lg transition-colors">
               <Bell className="w-5 h-5" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
             </button>
-            <div className="w-10 h-10 rounded-full bg-[var(--primary-500)] flex items-center justify-center text-white font-bold text-sm">
+            <div className="w-10 h-10 rounded-full bg-[#3b82f6] flex items-center justify-center text-white font-bold text-sm">
               {user?.name?.charAt(0).toUpperCase()}
             </div>
           </div>

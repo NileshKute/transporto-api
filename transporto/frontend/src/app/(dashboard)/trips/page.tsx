@@ -50,26 +50,26 @@ export default function TripsPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Trips</h2>
-          <p className="text-sm text-[var(--text-secondary)] mt-0.5">Manage all trips</p>
+          <h2 className="text-2xl font-bold text-[#0f172a]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Trips</h2>
+          <p className="text-sm text-[#475569] mt-0.5">Manage all trips</p>
         </div>
-        <button onClick={() => { setForm({}); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--primary-600)] hover:bg-[var(--primary-700)] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+        <button onClick={() => { setForm({}); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
           <Plus className="w-4 h-4" /> New Trip
         </button>
       </div>
 
-      <div className="bg-white border border-[var(--border-light)] rounded-xl p-4 shadow-[var(--shadow-card)] flex flex-wrap gap-3">
+      <div className="bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-sm flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search trip#, location, client..." className="h-10 pl-10 rounded-lg border border-[var(--border-default)] text-sm w-full" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search trip#, location, client..." className="h-10 pl-10 rounded-lg border border-[#cbd5e1] text-sm w-full" />
         </div>
-        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="h-10 w-40 rounded-lg border border-[var(--border-default)] text-sm">
+        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="h-10 w-40 rounded-lg border border-[#cbd5e1] text-sm">
           <option value="">All Statuses</option>
           {STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
         </select>
       </div>
 
-      <div className="bg-white border border-[var(--border-light)] rounded-xl overflow-hidden shadow-[var(--shadow-card)]">
+      <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden shadow-sm">
         {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message="No trips found" /> : (
           <div className="overflow-x-auto">
             <table>
@@ -77,18 +77,18 @@ export default function TripsPage() {
               <tbody>
                 {data.data.map((t: any) => (
                   <tr key={t.id}>
-                    <td className="mono text-sm font-bold text-[var(--primary-600)]">{t.tripNumber}</td>
-                    <td className="text-sm text-[var(--text-secondary)]">{formatDate(t.date)}</td>
-                    <td className="mono text-sm text-[var(--text-secondary)]">{t.vehicle?.regNumber}</td>
-                    <td className="text-sm text-[var(--text-primary)]">{t.driver?.name}</td>
-                    <td className="text-sm text-[var(--text-secondary)] max-w-[150px]"><span className="truncate block">{t.startLocation} → {t.endLocation || '...'}</span></td>
-                    <td className="mono text-[var(--text-secondary)]">{t.distanceKm ? `${t.distanceKm} km` : '—'}</td>
+                    <td className="mono text-sm font-bold text-[#2563eb]">{t.tripNumber}</td>
+                    <td className="text-sm text-[#475569]">{formatDate(t.date)}</td>
+                    <td className="mono text-sm text-[#475569]">{t.vehicle?.regNumber}</td>
+                    <td className="text-sm text-[#0f172a]">{t.driver?.name}</td>
+                    <td className="text-sm text-[#475569] max-w-[150px]"><span className="truncate block">{t.startLocation} → {t.endLocation || '...'}</span></td>
+                    <td className="mono text-[#475569]">{t.distanceKm ? `${t.distanceKm} km` : '—'}</td>
                     <td><StatusBadge status={t.status} /></td>
-                    <td className="mono font-semibold text-[var(--success)]">{t.billAmount ? formatCurrency(t.billAmount) : '—'}</td>
+                    <td className="mono font-semibold text-emerald-600">{t.billAmount ? formatCurrency(t.billAmount) : '—'}</td>
                     <td>
                       {t.status === 'IN_PROGRESS' && (
                         <button onClick={() => { setCompleteTrip(t); setCompleteForm({ endKm: t.endKm || '', endLocation: t.endLocation || '' }); }}
-                          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-[var(--success)] border border-[var(--success)] hover:bg-[var(--success-bg)] rounded-lg transition-colors">
+                          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors">
                           <CheckCircle className="w-3 h-3" /> Complete
                         </button>
                       )}

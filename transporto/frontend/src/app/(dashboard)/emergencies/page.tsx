@@ -52,7 +52,7 @@ export default function EmergenciesPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div><h2 className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Emergencies</h2><p className="text-sm text-[var(--text-secondary)]">Track and resolve incidents</p></div>
+        <div><h2 className="text-2xl font-bold text-[#0f172a]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Emergencies</h2><p className="text-sm text-[#475569]">Track and resolve incidents</p></div>
         <button onClick={() => { setForm({ priority: 'HIGH' }); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
           <Plus className="w-4 h-4" /> Report Emergency
         </button>
@@ -61,7 +61,7 @@ export default function EmergenciesPage() {
       <div className="flex flex-wrap gap-2">
         {['', ...E_STATUSES].map(s => (
           <button key={s} onClick={() => { setFilterStatus(s); setPage(1); }}
-            className={`px-3 py-2 text-sm rounded-lg font-medium transition-colors ${filterStatus === s ? 'bg-[var(--primary-600)] text-white' : 'bg-white border border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-table-header)]'}`}>
+            className={`px-3 py-2 text-sm rounded-lg font-medium transition-colors ${filterStatus === s ? 'bg-[#2563eb] text-white' : 'bg-white border border-[#cbd5e1] text-[#475569] hover:bg-[#f1f5f9]'}`}>
             {s || 'All'}
           </button>
         ))}
@@ -70,11 +70,11 @@ export default function EmergenciesPage() {
       {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message="No emergencies found" description="All clear!" /> : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {data.data.map((e: any) => (
-            <div key={e.id} className={`bg-white border border-[var(--border-light)] rounded-xl p-5 border-l-4 shadow-[var(--shadow-card)] ${priorityBorder[e.priority] || 'border-l-slate-400'}`}>
+            <div key={e.id} className={`bg-white border border-[#e2e8f0] rounded-xl p-5 border-l-4 shadow-sm ${priorityBorder[e.priority] || 'border-l-slate-400'}`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="text-xl">{typeIcon[e.type] || '⚠️'}</span>
-                  <span className="font-bold text-[var(--text-primary)] text-sm">{e.type?.replace(/_/g,' ')}</span>
+                  <span className="font-bold text-[#0f172a] text-sm">{e.type?.replace(/_/g,' ')}</span>
                 </div>
                 <StatusBadge status={e.status} />
               </div>

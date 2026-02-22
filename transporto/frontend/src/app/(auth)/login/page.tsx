@@ -68,14 +68,14 @@ export default function LoginPage() {
       {/* Right: Login form — 45% */}
       <div className="flex-1 flex items-center justify-center p-6 bg-white">
         <div className="w-full max-w-[400px]">
-          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          <h2 className="text-2xl font-bold text-[#0f172a] mb-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
             Welcome back
           </h2>
-          <p className="text-sm text-[var(--text-secondary)] mb-8">Sign in to your account</p>
+          <p className="text-sm text-[#475569] mb-8">Sign in to your account</p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">Email</label>
+              <label className="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-2">Email</label>
               <input
                 type="email"
                 value={email}
@@ -83,11 +83,11 @@ export default function LoginPage() {
                 placeholder="you@company.com"
                 required
                 autoComplete="email"
-                className="h-12 rounded-lg border border-[var(--border-default)] focus:border-[var(--primary-500)] focus:ring-2 focus:ring-[var(--primary-100)]"
+                className="h-12 rounded-lg border border-[#cbd5e1] focus:border-[#3b82f6] focus:ring-2 focus:ring-[#dbeafe]"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">Password</label>
+              <label className="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-2">Password</label>
               <div className="relative">
                 <input
                   type={showPass ? 'text' : 'password'}
@@ -96,12 +96,12 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   required
                   autoComplete="current-password"
-                  className="h-12 rounded-lg border border-[var(--border-default)] focus:border-[var(--primary-500)] focus:ring-2 focus:ring-[var(--primary-100)] w-full pr-12"
+                  className="h-12 rounded-lg border border-[#cbd5e1] focus:border-[#3b82f6] focus:ring-2 focus:ring-[#dbeafe] w-full pr-12"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94a3b8] hover:text-[#0f172a]"
                 >
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -110,24 +110,24 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-12 bg-[var(--primary-600)] hover:bg-[var(--primary-700)] text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full h-12 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in...</> : 'Sign In'}
             </button>
           </form>
 
           <div className="mt-8">
-            <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Demo Accounts</p>
+            <p className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-3">Demo Accounts</p>
             <div className="space-y-2">
               {DEMO_ACCOUNTS.map(({ role, email: e, pass }) => (
                 <button
                   key={e}
                   type="button"
                   onClick={() => { setEmail(e); setPassword(pass); }}
-                  className="w-full flex items-center justify-between p-3 rounded-lg bg-[var(--bg-table-header)] hover:bg-[var(--primary-50)] border border-transparent hover:border-[var(--border-light)] transition-colors text-left"
+                  className="w-full flex items-center justify-between p-3 rounded-lg bg-[#f1f5f9] hover:bg-[#eff6ff] border border-transparent hover:border-[#e2e8f0] transition-colors text-left"
                 >
-                  <span className="text-sm font-medium text-[var(--text-primary)]">{role}</span>
-                  <span className="text-xs text-[var(--text-muted)] font-mono">{e}</span>
+                  <span className="text-sm font-medium text-[#0f172a]">{role}</span>
+                  <span className="text-xs text-[#94a3b8] font-mono">{e}</span>
                 </button>
               ))}
             </div>

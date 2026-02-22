@@ -23,21 +23,21 @@ export function StatCard({ icon: Icon, iconColor, title, value, subtitle, trend,
   const c = colorMap[iconColor];
   const trendUp = trendDirection ? trendDirection === 'up' : (trend !== undefined && trend >= 0);
   return (
-    <div className="bg-white rounded-xl p-5 border border-[var(--border-light)] shadow-[var(--shadow-card)] hover:bg-[var(--bg-card-hover)] transition-colors">
+    <div className="bg-white rounded-xl p-5 border border-[#e2e8f0] shadow-sm hover:bg-[#f8fafc] transition-colors">
       <div className="flex items-start justify-between">
         <div className={`w-12 h-12 rounded-xl ${c.bg} flex items-center justify-center ${c.icon}`}>
           <Icon className="w-6 h-6" />
         </div>
         {trend !== undefined && (
-          <span className={`flex items-center gap-0.5 text-xs font-semibold ${trendUp ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+          <span className={`flex items-center gap-0.5 text-xs font-semibold ${trendUp ? 'text-emerald-600' : 'text-red-600'}`}>
             {trendUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
             {Math.abs(trend)}%
           </span>
         )}
       </div>
-      <p className="text-[28px] font-bold mono text-[var(--text-primary)] mt-3 leading-tight">{value}</p>
-      <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">{title}</p>
-      {subtitle && <p className="text-xs text-[var(--text-muted)] mt-1">{subtitle}</p>}
+      <p className="text-[28px] font-bold mono text-[#0f172a] mt-3 leading-tight">{value}</p>
+      <p className="text-[13px] text-[#475569] mt-0.5">{title}</p>
+      {subtitle && <p className="text-xs text-[#94a3b8] mt-1">{subtitle}</p>}
     </div>
   );
 }

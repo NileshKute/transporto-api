@@ -2,8 +2,8 @@ import { Loader2 } from 'lucide-react';
 
 export function LoadingSpinner({ text = 'Loading...' }: { text?: string }) {
   return (
-    <div className="flex items-center justify-center py-16 gap-3 text-[var(--text-muted)]">
-      <Loader2 className="w-5 h-5 animate-spin text-[var(--primary-500)]" />
+    <div className="flex items-center justify-center py-16 gap-3 text-[#94a3b8]">
+      <Loader2 className="w-5 h-5 animate-spin text-[#3b82f6]" />
       <span className="text-sm">{text}</span>
     </div>
   );

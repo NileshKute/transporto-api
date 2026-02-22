@@ -24,8 +24,8 @@ const vehicleStatusData = [
 function SectionHeader({ title, href }: { title: string; href: string }) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <h3 className="text-base font-semibold text-[var(--text-primary)]">{title}</h3>
-      <Link href={href} className="text-sm text-[var(--primary-600)] hover:text-[var(--primary-700)] font-medium transition-colors">View all →</Link>
+      <h3 className="text-base font-semibold text-[#0f172a]">{title}</h3>
+      <Link href={href} className="text-sm text-[#2563eb] hover:text-[#1d4ed8] font-medium transition-colors">View all →</Link>
     </div>
   );
 }
@@ -64,11 +64,11 @@ export default function DashboardPage() {
           { label: 'Cold Storage Alerts', value: stats?.coldStorage?.alerts ?? 0, icon: Thermometer, border: 'border-l-cyan-500', iconClass: 'text-cyan-600', href: '/cold-storage' },
         ].map(({ label, value, icon: Icon, border, iconClass, href }) => (
           <Link key={label} href={href}>
-            <div className={`bg-white rounded-xl border border-[var(--border-light)] border-l-4 ${border} p-4 shadow-[var(--shadow-card)] flex items-center gap-4 hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer`}>
+            <div className={`bg-white rounded-xl border border-[#e2e8f0] border-l-4 ${border} p-4 shadow-sm flex items-center gap-4 hover:bg-[#f8fafc] transition-colors cursor-pointer`}>
               <div className={`p-2.5 rounded-xl bg-gray-100 ${iconClass}`}><Icon className="w-5 h-5" /></div>
               <div>
-                <p className={`text-2xl font-bold mono ${value > 0 ? iconClass : 'text-[var(--text-muted)]'}`}>{value}</p>
-                <p className="text-xs text-[var(--text-secondary)] mt-0.5">{label}</p>
+                <p className={`text-2xl font-bold mono ${value > 0 ? iconClass : 'text-[#94a3b8]'}`}>{value}</p>
+                <p className="text-xs text-[#475569] mt-0.5">{label}</p>
               </div>
             </div>
           </Link>
@@ -77,8 +77,8 @@ export default function DashboardPage() {
 
       {/* Charts */}
       <div className="grid xl:grid-cols-5 gap-5">
-        <div className="xl:col-span-3 bg-white rounded-xl border border-[var(--border-light)] shadow-[var(--shadow-card)] p-5">
-          <h3 className="text-base font-semibold text-[var(--text-primary)] mb-4">Weekly Trip Activity</h3>
+        <div className="xl:col-span-3 bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-5">
+          <h3 className="text-base font-semibold text-[#0f172a] mb-4">Weekly Trip Activity</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={weeklyTripData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -89,8 +89,8 @@ export default function DashboardPage() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="xl:col-span-2 bg-white rounded-xl border border-[var(--border-light)] shadow-[var(--shadow-card)] p-5">
-          <h3 className="text-base font-semibold text-[var(--text-primary)] mb-4">Vehicle Status</h3>
+        <div className="xl:col-span-2 bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-5">
+          <h3 className="text-base font-semibold text-[#0f172a] mb-4">Vehicle Status</h3>
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie data={vehicleStatusData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value">
@@ -105,8 +105,8 @@ export default function DashboardPage() {
 
       {/* Recent Trips & Fuel */}
       <div className="grid xl:grid-cols-2 gap-5">
-        <div className="bg-white border border-[var(--border-light)] rounded-xl overflow-hidden shadow-[var(--shadow-card)]">
-          <div className="px-5 py-4 border-b border-[var(--border-light)]">
+        <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden shadow-sm">
+          <div className="px-5 py-4 border-b border-[#e2e8f0]">
             <SectionHeader title="Recent Trips" href="/trips" />
           </div>
           {rl ? <TableSkeleton rows={5} cols={4} /> : (
@@ -115,19 +115,19 @@ export default function DashboardPage() {
               <tbody>
                 {recent?.trips?.slice(0, 5).map((t: any) => (
                   <tr key={t.id}>
-                    <td><span className="mono text-sm font-bold text-[var(--primary-600)]">{t.tripNumber}</span></td>
-                    <td><span className="mono text-sm text-[var(--text-secondary)]">{t.vehicle?.regNumber}</span></td>
-                    <td><span className="text-sm text-[var(--text-secondary)] truncate block max-w-[160px]">{t.startLocation?.split('(')[0].trim()} → {t.endLocation?.split('(')[0].trim() || '...'}</span></td>
+                    <td><span className="mono text-sm font-bold text-[#2563eb]">{t.tripNumber}</span></td>
+                    <td><span className="mono text-sm text-[#475569]">{t.vehicle?.regNumber}</span></td>
+                    <td><span className="text-sm text-[#475569] truncate block max-w-[160px]">{t.startLocation?.split('(')[0].trim()} → {t.endLocation?.split('(')[0].trim() || '...'}</span></td>
                     <td><StatusBadge status={t.status} /></td>
                   </tr>
                 ))}
-                {!recent?.trips?.length && <tr><td colSpan={4} className="text-center py-8 text-[var(--text-muted)] text-sm">No trips yet</td></tr>}
+                {!recent?.trips?.length && <tr><td colSpan={4} className="text-center py-8 text-[#94a3b8] text-sm">No trips yet</td></tr>}
               </tbody>
             </table>
           )}
         </div>
-        <div className="bg-white border border-[var(--border-light)] rounded-xl overflow-hidden shadow-[var(--shadow-card)]">
-          <div className="px-5 py-4 border-b border-[var(--border-light)]">
+        <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden shadow-sm">
+          <div className="px-5 py-4 border-b border-[#e2e8f0]">
             <SectionHeader title="Recent Fuel Entries" href="/fuel" />
           </div>
           {rl ? <TableSkeleton rows={5} cols={4} /> : (
@@ -136,13 +136,13 @@ export default function DashboardPage() {
               <tbody>
                 {recent?.fuelEntries?.slice(0, 5).map((f: any) => (
                   <tr key={f.id}>
-                    <td><span className="mono text-sm font-semibold text-[var(--text-primary)]">{f.vehicle?.regNumber}</span></td>
+                    <td><span className="mono text-sm font-semibold text-[#0f172a]">{f.vehicle?.regNumber}</span></td>
                     <td className="mono text-sm">{f.liters} L</td>
-                    <td><span className="mono font-semibold text-[var(--success)]">{formatCurrency(f.totalCost)}</span></td>
-                    <td className="text-sm text-[var(--text-muted)]">{formatDate(f.fuelDate)}</td>
+                    <td><span className="mono font-semibold text-emerald-600">{formatCurrency(f.totalCost)}</span></td>
+                    <td className="text-sm text-[#94a3b8]">{formatDate(f.fuelDate)}</td>
                   </tr>
                 ))}
-                {!recent?.fuelEntries?.length && <tr><td colSpan={4} className="text-center py-8 text-[var(--text-muted)] text-sm">No fuel entries</td></tr>}
+                {!recent?.fuelEntries?.length && <tr><td colSpan={4} className="text-center py-8 text-[#94a3b8] text-sm">No fuel entries</td></tr>}
               </tbody>
             </table>
           )}

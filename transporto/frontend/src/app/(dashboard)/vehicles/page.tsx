@@ -20,7 +20,7 @@ const STATUSES = ['ACTIVE','IN_MAINTENANCE','IDLE','BREAKDOWN','SOLD','DECOMMISS
 function VehicleFormFields({ form, setForm }: { form: any, setForm: any }) {
   const field = (name: string, label: string, type = 'text', opts?: any) => (
     <div>
-      <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">{label}</label>
+      <label className="block text-xs font-medium text-[#475569] mb-1.5">{label}</label>
       {opts?.options ? (
         <select value={form[name] || ''} onChange={e => setForm((p: any) => ({ ...p, [name]: e.target.value }))}>
           <option value="">Select {label}</option>
@@ -84,33 +84,33 @@ export default function VehiclesPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Vehicles</h2>
-          <p className="text-sm text-[var(--text-secondary)] mt-0.5">Manage your fleet vehicles</p>
+          <h2 className="text-2xl font-bold text-[#0f172a]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Vehicles</h2>
+          <p className="text-sm text-[#475569] mt-0.5">Manage your fleet vehicles</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] border border-[var(--border-default)] rounded-lg hover:bg-[var(--bg-table-header)] transition-colors">Export</button>
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--primary-600)] hover:bg-[var(--primary-700)] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+          <button className="px-4 py-2.5 text-sm font-medium text-[#475569] border border-[#cbd5e1] rounded-lg hover:bg-[#f1f5f9] transition-colors">Export</button>
+          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
             <Plus className="w-4 h-4" /> Add Vehicle
           </button>
         </div>
       </div>
 
-      <div className="bg-white border border-[var(--border-light)] rounded-xl p-4 shadow-[var(--shadow-card)] flex flex-wrap gap-3">
-        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="h-10 w-40 rounded-lg border border-[var(--border-default)] text-sm">
+      <div className="bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-sm flex flex-wrap gap-3">
+        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="h-10 w-40 rounded-lg border border-[#cbd5e1] text-sm">
           <option value="">All Statuses</option>
           {STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
         </select>
-        <select value={type} onChange={e => { setType(e.target.value); setPage(1); }} className="h-10 w-40 rounded-lg border border-[var(--border-default)] text-sm">
+        <select value={type} onChange={e => { setType(e.target.value); setPage(1); }} className="h-10 w-40 rounded-lg border border-[#cbd5e1] text-sm">
           <option value="">All Types</option>
           {VEHICLE_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
         </select>
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search reg, make, model..." className="h-10 pl-10 rounded-lg border border-[var(--border-default)] text-sm" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search reg, make, model..." className="h-10 pl-10 rounded-lg border border-[#cbd5e1] text-sm" />
         </div>
       </div>
 
-      <div className="bg-white border border-[var(--border-light)] rounded-xl overflow-hidden shadow-[var(--shadow-card)]">
+      <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden shadow-sm">
         {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message="No vehicles found" /> : (
           <div className="overflow-x-auto">
             <table>
@@ -122,19 +122,19 @@ export default function VehiclesPage() {
                   <tr key={v.id}>
                     <td>
                       <div>
-                        <span className="mono font-bold text-[var(--text-primary)]">{v.regNumber}</span>
-                        <p className="text-xs text-[var(--text-secondary)]">{v.make} {v.model}</p>
+                        <span className="mono font-bold text-[#0f172a]">{v.regNumber}</span>
+                        <p className="text-xs text-[#475569]">{v.make} {v.model}</p>
                       </div>
                     </td>
                     <td><span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded font-medium">{v.type?.replace(/_/g,' ')}</span></td>
                     <td><StatusBadge status={v.status} /></td>
-                    <td className="mono text-[var(--text-secondary)]">{formatKm(v.currentKm)}</td>
-                    <td className="text-sm text-[var(--text-muted)]">{v.assignments?.[0]?.driver?.name || 'Unassigned'}</td>
+                    <td className="mono text-[#475569]">{formatKm(v.currentKm)}</td>
+                    <td className="text-sm text-[#94a3b8]">{v.assignments?.[0]?.driver?.name || 'Unassigned'}</td>
                     <td>
                       <div className="flex items-center gap-1">
-                        <Link href={`/vehicles/${v.id}`} className="p-2 text-[var(--primary-600)] hover:bg-[var(--primary-50)] rounded-lg transition-colors"><Eye className="w-4 h-4" /></Link>
-                        <button onClick={() => openEdit(v)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-table-header)] rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
-                        <button onClick={() => setDeleteId(v.id)} className="p-2 text-[var(--text-muted)] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                        <Link href={`/vehicles/${v.id}`} className="p-2 text-[#2563eb] hover:bg-[#eff6ff] rounded-lg transition-colors"><Eye className="w-4 h-4" /></Link>
+                        <button onClick={() => openEdit(v)} className="p-2 text-[#94a3b8] hover:text-[#0f172a] hover:bg-[#f1f5f9] rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => setDeleteId(v.id)} className="p-2 text-[#94a3b8] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -150,8 +150,8 @@ export default function VehiclesPage() {
         <div className="space-y-4">
           <VehicleFormFields form={form} setForm={setForm} />
           <div className="flex gap-3 pt-2">
-            <button onClick={() => setModalOpen(false)} className="flex-1 py-2.5 text-sm font-medium text-[var(--text-secondary)] border border-[var(--border-default)] rounded-lg hover:bg-[var(--bg-table-header)] transition-colors">Cancel</button>
-            <button onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending} className="flex-1 py-2.5 text-sm font-semibold text-white bg-[var(--primary-600)] hover:bg-[var(--primary-700)] disabled:opacity-50 rounded-lg transition-colors">
+            <button onClick={() => setModalOpen(false)} className="flex-1 py-2.5 text-sm font-medium text-[#475569] border border-[#cbd5e1] rounded-lg hover:bg-[#f1f5f9] transition-colors">Cancel</button>
+            <button onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending} className="flex-1 py-2.5 text-sm font-semibold text-white bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-50 rounded-lg transition-colors">
               {saveMutation.isPending ? 'Saving...' : editVehicle ? 'Update' : 'Create'}
             </button>
           </div>
