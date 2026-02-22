@@ -14,11 +14,14 @@ async function bootstrap() {
 
   app.use(helmet());
 
+  const frontendUrls = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',').map((url) => url.trim()).filter(Boolean)
+    : [];
   const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:3002',
-    process.env.FRONTEND_URL,
-  ].filter(Boolean) as string[];
+    ...frontendUrls,
+  ];
 
   app.enableCors({
     origin: allowedOrigins,
