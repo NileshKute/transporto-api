@@ -14,20 +14,17 @@ async function bootstrap() {
 
   app.use(helmet());
 
-  const frontendUrls = process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',').map((url) => url.trim()).filter(Boolean)
-    : [];
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:3002',
-    ...frontendUrls,
-  ];
-
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      const allowedOrigins = (process.env.FRONTEND_URL || '').split(',').map(s => s.trim());
+      // Allow requests with no origin (mobile apps, Postman, etc)
+      if (!origin || allowedOrigins.some(allowed => origin.startsWith(allowed) || origin.includes('vercel.app') || origin.includes('localhost'))) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Allow all for now during development
+      }
+    },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   app.useGlobalPipes(
