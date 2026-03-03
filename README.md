@@ -35,6 +35,11 @@ JWT_EXPIRES_IN="7d"
 PORT=3001
 NODE_ENV=development
 FRONTEND_URL="http://localhost:3000"
+
+# Twilio WhatsApp (optional — for WhatsApp webhook & send)
+TWILIO_ACCOUNT_SID=""
+TWILIO_AUTH_TOKEN=""
+TWILIO_WHATSAPP_NUMBER="whatsapp:+14155238886"
 ```
 
 > Replace `YOUR_USER`, `YOUR_PASSWORD`, `YOUR_DB` with your PostgreSQL credentials.

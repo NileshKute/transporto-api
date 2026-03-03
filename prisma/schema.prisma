@@ -195,6 +195,11 @@ enum AttendanceStatus {
   HOLIDAY
 }
 
+enum WhatsAppMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
 enum MessageStatus {
   RECEIVED
   PROCESSING
@@ -679,22 +684,26 @@ model Shift {
 }
 
 model WhatsAppMessage {
-  id          String        @id @default(uuid())
-  driverId    String?
-  driver      Driver?       @relation(fields: [driverId], references: [id])
-  fromPhone   String        @db.VarChar(20)
-  toPhone     String?       @db.VarChar(20)
-  direction   String        @default("INCOMING")
-  message     String
-  mediaUrl    String?
-  parsedType  String?
-  parsedData  Json?
-  confidence  Float?
-  status      MessageStatus @default(RECEIVED)
-  errorReason String?
-  processedAt DateTime?
-  twilioSid   String?
-  receivedAt  DateTime      @default(now())
+  id                String                    @id @default(uuid())
+  driverId          String?
+  driver            Driver?                   @relation(fields: [driverId], references: [id])
+  fromPhone         String                    @db.VarChar(20)
+  toPhone           String?                   @db.VarChar(20)
+  direction         WhatsAppMessageDirection  @default(INBOUND)
+  message           String
+  mediaUrl          String?
+  parsedType        String?
+  parsedData        Json?
+  confidence        Float?
+  confidenceScore   Float                     @default(0)
+  status            MessageStatus             @default(RECEIVED)
+  errorReason       String?
+  processedAt       DateTime?
+  twilioSid         String?
+  twilioMessageSid  String?
+  twilioStatus      String?
+  autoReplyText     String?
+  receivedAt        DateTime                  @default(now())
 
   @@index([driverId])
   @@index([fromPhone])
