@@ -49,38 +49,50 @@ export default function ShiftsPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div><h2 className="text-2xl font-bold text-[#0f172a]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Shifts</h2><p className="text-sm text-[#475569]">Driver shift management</p></div>
-        <button onClick={() => { setForm({}); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+        <div><h2 className="text-2xl font-bold text-slate-900">Shifts</h2><p className="text-sm text-slate-500">Driver shift management</p></div>
+        <button onClick={() => { setForm({}); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition-colors">
           <Plus className="w-4 h-4" /> Create Shift
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-5 flex flex-wrap gap-2">
         {['', 'SCHEDULED', 'ACTIVE', 'COMPLETED', 'CANCELLED', 'NO_SHOW'].map(s => (
           <button key={s} onClick={() => { setFilterStatus(s); setPage(1); }}
-            className={`px-3 py-2 text-sm rounded-lg font-medium transition-colors ${filterStatus === s ? 'bg-[#2563eb] text-white' : 'bg-white border border-[#cbd5e1] text-[#475569] hover:bg-[#f1f5f9]'}`}>
+            className={`px-3 py-2 text-sm rounded-lg font-medium transition-colors ${filterStatus === s ? 'bg-blue-600 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
             {s || 'All'}
           </button>
         ))}
       </div>
 
-      <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message="No shifts found" /> : (
           <div className="overflow-x-auto">
-            <table>
-              <thead><tr><th>Driver</th><th>Vehicle</th><th>Date</th><th>Start</th><th>End</th><th>Hours</th><th>Overtime</th><th>Status</th><th>Actions</th></tr></thead>
-              <tbody>
+            <table className="w-full">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Driver</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Vehicle</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Start</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">End</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Hours</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Overtime</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
                 {data.data.map((s: any) => (
-                  <tr key={s.id} className={s.overtime > 0 ? 'border-l-4 border-l-amber-500 bg-amber-50/50' : ''}>
-                    <td className="font-medium text-[#0f172a]">{s.driver?.name}</td>
-                    <td className="mono text-sm text-[#475569]">{s.vehicle?.regNumber || '—'}</td>
-                    <td className="text-sm text-[#94a3b8]">{formatDate(s.date)}</td>
-                    <td className="text-xs text-[#475569]">{formatDateTime(s.startTime)}</td>
-                    <td className="text-xs text-[#94a3b8]">{s.endTime ? formatDateTime(s.endTime) : '—'}</td>
-                    <td className="mono font-medium text-[#0f172a]">{s.hoursWorked != null ? `${Math.floor(s.hoursWorked)}h ${Math.round((s.hoursWorked % 1) * 60)}m` : '—'}</td>
-                    <td>{s.overtime > 0 ? <span className="text-amber-400 font-bold text-sm">+{s.overtime}h OT</span> : <span className="text-slate-600">—</span>}</td>
-                    <td><StatusBadge status={s.status} /></td>
-                    <td>
+                  <tr key={s.id} className={`hover:bg-blue-50/50 transition-colors ${s.overtime > 0 ? 'border-l-4 border-l-amber-500 bg-amber-50/50' : ''}`}>
+                    <td className="px-4 py-3.5 font-medium text-slate-900">{s.driver?.name}</td>
+                    <td className="px-4 py-3.5 text-sm text-slate-700 font-mono">{s.vehicle?.regNumber || '—'}</td>
+                    <td className="px-4 py-3.5 text-sm text-slate-500">{formatDate(s.date)}</td>
+                    <td className="px-4 py-3.5 text-xs text-slate-600">{formatDateTime(s.startTime)}</td>
+                    <td className="px-4 py-3.5 text-xs text-slate-500">{s.endTime ? formatDateTime(s.endTime) : '—'}</td>
+                    <td className="px-4 py-3.5 font-mono font-medium text-slate-900">{s.hoursWorked != null ? `${Math.floor(s.hoursWorked)}h ${Math.round((s.hoursWorked % 1) * 60)}m` : '—'}</td>
+                    <td className="px-4 py-3.5">{s.overtime > 0 ? <span className="text-amber-600 font-bold text-sm">+{s.overtime}h OT</span> : <span className="text-slate-500">—</span>}</td>
+                    <td className="px-4 py-3.5"><StatusBadge status={s.status} /></td>
+                    <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1">
                         {s.status === 'SCHEDULED' && (
                           <button onClick={() => startMutation.mutate(s.id)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition-colors">

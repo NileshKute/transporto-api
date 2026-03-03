@@ -34,8 +34,8 @@ export default function ColdStoragePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-[#0f172a]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Cold Storage</h2>
-        <p className="text-sm text-[#475569]">Monitor temperature and storage units</p>
+        <h2 className="text-2xl font-bold text-slate-900">Cold Storage</h2>
+        <p className="text-sm text-slate-500">Monitor temperature and storage units</p>
       </div>
 
       {alerts?.length > 0 && (
@@ -46,9 +46,9 @@ export default function ColdStoragePage() {
           </div>
           <div className="space-y-2">
             {alerts.slice(0, 3).map((a: any) => (
-              <div key={a.id} className="flex items-center justify-between text-sm text-[#0f172a]">
+              <div key={a.id} className="flex items-center justify-between text-sm text-slate-900">
                 <span>{a.unit?.name} — {a.alertType.replace(/_/g,' ')}</span>
-                <span className="text-xs mono">{a.temperature != null ? `${a.temperature}°C` : ''}</span>
+                <span className="text-xs font-mono">{a.temperature != null ? `${a.temperature}°C` : ''}</span>
               </div>
             ))}
           </div>
@@ -63,42 +63,42 @@ export default function ColdStoragePage() {
             const capacityPct = Math.min(100, u.capacityTotal ? Math.round((capacityUsed / u.capacityTotal) * 100) : 0);
             return (
               <Link key={u.id} href={`/cold-storage/${u.id}`}>
-                <div className="bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-sm hover:bg-[#f8fafc] transition-all cursor-pointer">
+                <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <div className={`w-2.5 h-2.5 rounded-full ${statusDot(u.status)} ${u.status === 'WARNING' || u.status === 'CRITICAL' ? 'animate-pulse' : ''}`} />
-                        <h3 className="font-semibold text-[#0f172a]">{u.name}</h3>
+                        <h3 className="font-semibold text-slate-900">{u.name}</h3>
                       </div>
-                      <span className="text-xs bg-[#f1f5f9] text-[#475569] px-2 py-0.5 rounded font-medium">{u.type?.replace(/_/g,' ')}</span>
+                      <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">{u.type?.replace(/_/g,' ')}</span>
                     </div>
                     <StatusBadge status={u.status} />
                   </div>
 
                   <div className="flex items-end justify-between mb-4">
                     <div>
-                      <p className="text-xs text-[#94a3b8] mb-1">Current Temp</p>
-                      <p className={`text-4xl font-bold mono ${tempColor(u.status)}`}>
+                      <p className="text-xs text-slate-500 mb-1">Current Temp</p>
+                      <p className={`text-4xl font-bold font-mono ${tempColor(u.status)}`}>
                         {latestTemp != null ? `${latestTemp > 0 ? '+' : ''}${latestTemp}°` : '—'}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-[#94a3b8]">Target</p>
-                      <p className="text-sm font-semibold text-[#475569]">{u.targetTemp != null && u.targetTemp > 0 ? '+' : ''}{u.targetTemp}°C</p>
+                      <p className="text-xs text-slate-500">Target</p>
+                      <p className="text-sm font-semibold text-slate-600">{u.targetTemp != null && u.targetTemp > 0 ? '+' : ''}{u.targetTemp}°C</p>
                     </div>
                   </div>
 
                   <div className="mb-4">
-                    <div className="flex justify-between text-xs text-[#94a3b8] mb-1.5">
+                    <div className="flex justify-between text-xs text-slate-500 mb-1.5">
                       <span>Capacity</span>
-                      <span className="mono">{capacityUsed} / {u.capacityTotal} {u.capacityUnit || 'Tons'}</span>
+                      <span className="font-mono">{capacityUsed} / {u.capacityTotal} {u.capacityUnit || 'Tons'}</span>
                     </div>
-                    <div className="h-2 bg-[#f1f5f9] rounded-full overflow-hidden">
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div className={`h-full rounded-full transition-all ${capacityPct > 90 ? 'bg-red-500' : capacityPct > 70 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${capacityPct}%` }} />
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-xs text-[#94a3b8]">
+                  <div className="flex items-center justify-between text-xs text-slate-500">
                     <div className="flex items-center gap-1"><Users className="w-3 h-3" />{u.storageClients?.length || 0} active clients</div>
                     <div className="flex items-center gap-1"><Thermometer className="w-3 h-3" /> Sensor: {u.sensorId || 'N/A'}</div>
                   </div>

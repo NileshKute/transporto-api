@@ -6,7 +6,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { AlertBanner } from '@/components/ui/AlertBanner';
 import { LoadingSpinner, TableSkeleton } from '@/components/ui/LoadingSpinner';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Truck, Users, Route, Fuel, Wrench, AlertTriangle, Shield, Thermometer } from 'lucide-react';
+import { Truck, Users, Route, Fuel, Wrench, AlertTriangle, Shield, Snowflake } from 'lucide-react';
 import Link from 'next/link';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -24,8 +24,8 @@ const vehicleStatusData = [
 function SectionHeader({ title, href }: { title: string; href: string }) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <h3 className="text-base font-semibold text-[#0f172a]">{title}</h3>
-      <Link href={href} className="text-sm text-[#2563eb] hover:text-[#1d4ed8] font-medium transition-colors">View all →</Link>
+      <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+      <Link href={href} className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors">View all →</Link>
     </div>
   );
 }
@@ -48,7 +48,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 max-w-7xl">
       {/* Main KPIs */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
         <StatCard icon={Truck} iconColor="blue" title="Total Vehicles" value={stats?.vehicles?.total ?? 0} subtitle={`${stats?.vehicles?.active ?? 0} active`} trend={12} trendDirection="up" />
         <StatCard icon={Users} iconColor="green" title="Active Drivers" value={stats?.drivers?.total ?? 0} subtitle={`${stats?.drivers?.onTrip ?? 0} on trip`} trend={5} trendDirection="up" />
         <StatCard icon={Route} iconColor="purple" title="Today's Trips" value={stats?.trips?.today ?? 0} subtitle="Active today" trend={-3} trendDirection="down" />
@@ -56,19 +56,19 @@ export default function DashboardPage() {
       </div>
 
       {/* Alert Cards */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 mb-6">
         {[
           { label: 'Active Maintenance', value: stats?.maintenance?.active ?? 0, icon: Wrench, border: 'border-l-amber-500', iconClass: 'text-amber-600', href: '/maintenance' },
           { label: 'Pending Emergencies', value: stats?.emergencies?.pending ?? 0, icon: AlertTriangle, border: 'border-l-red-500', iconClass: 'text-red-600', href: '/emergencies' },
           { label: 'Expiring Insurance', value: stats?.insurance?.expiring ?? 0, icon: Shield, border: 'border-l-orange-500', iconClass: 'text-orange-600', href: '/insurance' },
-          { label: 'Cold Storage Alerts', value: stats?.coldStorage?.alerts ?? 0, icon: Thermometer, border: 'border-l-cyan-500', iconClass: 'text-cyan-600', href: '/cold-storage' },
+          { label: 'Cold Storage Alerts', value: stats?.coldStorage?.alerts ?? 0, icon: Snowflake, border: 'border-l-cyan-500', iconClass: 'text-cyan-600', href: '/cold-storage' },
         ].map(({ label, value, icon: Icon, border, iconClass, href }) => (
           <Link key={label} href={href}>
-            <div className={`bg-white rounded-xl border border-[#e2e8f0] border-l-4 ${border} p-4 shadow-sm flex items-center gap-4 hover:bg-[#f8fafc] transition-colors cursor-pointer`}>
+            <div className={`bg-white rounded-xl border border-slate-200 border-l-4 ${border} p-4 shadow-sm flex items-center gap-4 hover:shadow-md transition-all cursor-pointer`}>
               <div className={`p-2.5 rounded-xl bg-gray-100 ${iconClass}`}><Icon className="w-5 h-5" /></div>
               <div>
-                <p className={`text-2xl font-bold mono ${value > 0 ? iconClass : 'text-[#94a3b8]'}`}>{value}</p>
-                <p className="text-xs text-[#475569] mt-0.5">{label}</p>
+                <p className={`text-2xl font-bold font-mono ${value > 0 ? iconClass : 'text-slate-400'}`}>{value}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{label}</p>
               </div>
             </div>
           </Link>
@@ -76,9 +76,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid xl:grid-cols-5 gap-5">
-        <div className="xl:col-span-3 bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-5">
-          <h3 className="text-base font-semibold text-[#0f172a] mb-4">Weekly Trip Activity</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+          <h3 className="text-base font-semibold text-slate-900 mb-4">Weekly Trip Activity</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={weeklyTripData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -89,8 +89,8 @@ export default function DashboardPage() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="xl:col-span-2 bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-5">
-          <h3 className="text-base font-semibold text-[#0f172a] mb-4">Vehicle Status</h3>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+          <h3 className="text-base font-semibold text-slate-900 mb-4">Vehicle Status</h3>
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie data={vehicleStatusData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value">
@@ -105,46 +105,64 @@ export default function DashboardPage() {
 
       {/* Recent Trips & Fuel */}
       <div className="grid xl:grid-cols-2 gap-5">
-        <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-[#e2e8f0]">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-200">
             <SectionHeader title="Recent Trips" href="/trips" />
           </div>
           {rl ? <TableSkeleton rows={5} cols={4} /> : (
-            <table>
-              <thead><tr><th>Trip #</th><th>Vehicle</th><th>Route</th><th>Status</th></tr></thead>
-              <tbody>
-                {recent?.trips?.slice(0, 5).map((t: any) => (
-                  <tr key={t.id}>
-                    <td><span className="mono text-sm font-bold text-[#2563eb]">{t.tripNumber}</span></td>
-                    <td><span className="mono text-sm text-[#475569]">{t.vehicle?.regNumber}</span></td>
-                    <td><span className="text-sm text-[#475569] truncate block max-w-[160px]">{t.startLocation?.split('(')[0].trim()} → {t.endLocation?.split('(')[0].trim() || '...'}</span></td>
-                    <td><StatusBadge status={t.status} /></td>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Trip #</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Vehicle</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Route</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
                   </tr>
-                ))}
-                {!recent?.trips?.length && <tr><td colSpan={4} className="text-center py-8 text-[#94a3b8] text-sm">No trips yet</td></tr>}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {recent?.trips?.slice(0, 5).map((t: any) => (
+                    <tr key={t.id} className="hover:bg-blue-50/50 transition-colors">
+                      <td className="px-4 py-3.5 text-sm text-slate-700"><span className="font-mono font-bold text-blue-600">{t.tripNumber}</span></td>
+                      <td className="px-4 py-3.5 text-sm text-slate-700"><span className="font-mono">{t.vehicle?.regNumber}</span></td>
+                      <td className="px-4 py-3.5 text-sm text-slate-700 truncate max-w-[160px]">{t.startLocation?.split('(')[0].trim()} → {t.endLocation?.split('(')[0].trim() || '...'}</td>
+                      <td className="px-4 py-3.5"><StatusBadge status={t.status} /></td>
+                    </tr>
+                  ))}
+                  {!recent?.trips?.length && <tr><td colSpan={4} className="text-center py-8 text-slate-400 text-sm">No trips yet</td></tr>}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
-        <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-[#e2e8f0]">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-200">
             <SectionHeader title="Recent Fuel Entries" href="/fuel" />
           </div>
           {rl ? <TableSkeleton rows={5} cols={4} /> : (
-            <table>
-              <thead><tr><th>Vehicle</th><th>Liters</th><th>Cost</th><th>Date</th></tr></thead>
-              <tbody>
-                {recent?.fuelEntries?.slice(0, 5).map((f: any) => (
-                  <tr key={f.id}>
-                    <td><span className="mono text-sm font-semibold text-[#0f172a]">{f.vehicle?.regNumber}</span></td>
-                    <td className="mono text-sm">{f.liters} L</td>
-                    <td><span className="mono font-semibold text-emerald-600">{formatCurrency(f.totalCost)}</span></td>
-                    <td className="text-sm text-[#94a3b8]">{formatDate(f.fuelDate)}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Vehicle</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Liters</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Cost</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Date</th>
                   </tr>
-                ))}
-                {!recent?.fuelEntries?.length && <tr><td colSpan={4} className="text-center py-8 text-[#94a3b8] text-sm">No fuel entries</td></tr>}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {recent?.fuelEntries?.slice(0, 5).map((f: any) => (
+                    <tr key={f.id} className="hover:bg-blue-50/50 transition-colors">
+                      <td className="px-4 py-3.5 text-sm text-slate-700 font-mono font-semibold">{f.vehicle?.regNumber}</td>
+                      <td className="px-4 py-3.5 text-sm text-slate-700 font-mono">{f.liters} L</td>
+                      <td className="px-4 py-3.5 text-sm text-slate-700 font-mono font-semibold text-emerald-600">{formatCurrency(f.totalCost)}</td>
+                      <td className="px-4 py-3.5 text-sm text-slate-500">{formatDate(f.fuelDate)}</td>
+                    </tr>
+                  ))}
+                  {!recent?.fuelEntries?.length && <tr><td colSpan={4} className="text-center py-8 text-slate-400 text-sm">No fuel entries</td></tr>}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

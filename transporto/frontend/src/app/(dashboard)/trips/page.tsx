@@ -50,45 +50,57 @@ export default function TripsPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-[#0f172a]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Trips</h2>
-          <p className="text-sm text-[#475569] mt-0.5">Manage all trips</p>
+        <h2 className="text-2xl font-bold text-slate-900">Trips</h2>
+        <p className="text-sm text-slate-500 mt-0.5">Manage all trips</p>
         </div>
-        <button onClick={() => { setForm({}); setModalOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+        <button onClick={() => { setForm({}); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition-colors">
           <Plus className="w-4 h-4" /> New Trip
         </button>
       </div>
 
-      <div className="bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-sm flex flex-wrap gap-3">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-5 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search trip#, location, client..." className="h-10 pl-10 rounded-lg border border-[#cbd5e1] text-sm w-full" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search trip#, location, client..." className="h-10 pl-10 rounded-lg border border-slate-300 text-sm text-slate-900 w-full" />
         </div>
-        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="h-10 w-40 rounded-lg border border-[#cbd5e1] text-sm">
+        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="h-10 w-40 rounded-lg border border-slate-300 text-sm text-slate-700">
           <option value="">All Statuses</option>
           {STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
         </select>
       </div>
 
-      <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message="No trips found" /> : (
           <div className="overflow-x-auto">
-            <table>
-              <thead><tr><th>Trip #</th><th>Date</th><th>Vehicle</th><th>Driver</th><th>Route</th><th>Distance</th><th>Status</th><th>Bill</th><th>Actions</th></tr></thead>
-              <tbody>
+            <table className="w-full">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Trip #</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Vehicle</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Driver</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Route</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Distance</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Bill</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
                 {data.data.map((t: any) => (
-                  <tr key={t.id}>
-                    <td className="mono text-sm font-bold text-[#2563eb]">{t.tripNumber}</td>
-                    <td className="text-sm text-[#475569]">{formatDate(t.date)}</td>
-                    <td className="mono text-sm text-[#475569]">{t.vehicle?.regNumber}</td>
-                    <td className="text-sm text-[#0f172a]">{t.driver?.name}</td>
-                    <td className="text-sm text-[#475569] max-w-[150px]"><span className="truncate block">{t.startLocation} → {t.endLocation || '...'}</span></td>
-                    <td className="mono text-[#475569]">{t.distanceKm ? `${t.distanceKm} km` : '—'}</td>
-                    <td><StatusBadge status={t.status} /></td>
-                    <td className="mono font-semibold text-emerald-600">{t.billAmount ? formatCurrency(t.billAmount) : '—'}</td>
-                    <td>
+                  <tr key={t.id} className="hover:bg-blue-50/50 transition-colors">
+                    <td className="px-4 py-3.5 text-sm font-mono font-bold text-blue-600">{t.tripNumber}</td>
+                    <td className="px-4 py-3.5 text-sm text-slate-700">{formatDate(t.date)}</td>
+                    <td className="px-4 py-3.5 text-sm text-slate-700 font-mono">{t.vehicle?.regNumber}</td>
+                    <td className="px-4 py-3.5 text-sm text-slate-900">{t.driver?.name}</td>
+                    <td className="px-4 py-3.5 text-sm text-slate-700 max-w-[150px]"><span className="truncate block">{t.startLocation} → {t.endLocation || '...'}</span></td>
+                    <td className="px-4 py-3.5 text-sm text-slate-700 font-mono">{t.distanceKm ? `${t.distanceKm} km` : '—'}</td>
+                    <td className="px-4 py-3.5"><StatusBadge status={t.status} /></td>
+                    <td className="px-4 py-3.5 font-mono font-semibold text-emerald-600">{t.billAmount ? formatCurrency(t.billAmount) : '—'}</td>
+                    <td className="px-4 py-3.5">
                       {t.status === 'IN_PROGRESS' && (
                         <button onClick={() => { setCompleteTrip(t); setCompleteForm({ endKm: t.endKm || '', endLocation: t.endLocation || '' }); }}
-                          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors">
+                          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-emerald-600 border border-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors">
                           <CheckCircle className="w-3 h-3" /> Complete
                         </button>
                       )}

@@ -1,8 +1,8 @@
-import { TrendingUp, TrendingDown, LucideIcon } from 'lucide-react';
+import { LucideIcon } from 'lucide-react';
 
 interface StatCardProps {
   icon: LucideIcon;
-  iconColor: 'blue' | 'green' | 'amber' | 'purple' | 'cyan' | 'red';
+  iconColor: 'blue' | 'green' | 'purple' | 'amber' | 'red' | 'cyan';
   title: string;
   value: string | number;
   subtitle?: string;
@@ -11,33 +11,37 @@ interface StatCardProps {
 }
 
 const colorMap = {
-  blue: { bg: 'bg-blue-100', icon: 'text-blue-600' },
-  green: { bg: 'bg-emerald-100', icon: 'text-emerald-600' },
-  amber: { bg: 'bg-amber-100', icon: 'text-amber-600' },
-  purple: { bg: 'bg-violet-100', icon: 'text-violet-600' },
-  cyan: { bg: 'bg-cyan-100', icon: 'text-cyan-600' },
-  red: { bg: 'bg-red-100', icon: 'text-red-600' },
+  blue:   { bg: 'bg-blue-50',    text: 'text-blue-600',    ring: 'ring-blue-100' },
+  green:  { bg: 'bg-emerald-50', text: 'text-emerald-600', ring: 'ring-emerald-100' },
+  purple: { bg: 'bg-purple-50',  text: 'text-purple-600',  ring: 'ring-purple-100' },
+  amber:  { bg: 'bg-amber-50',   text: 'text-amber-600',   ring: 'ring-amber-100' },
+  red:    { bg: 'bg-red-50',     text: 'text-red-600',     ring: 'ring-red-100' },
+  cyan:   { bg: 'bg-cyan-50',    text: 'text-cyan-600',    ring: 'ring-cyan-100' },
 };
 
 export function StatCard({ icon: Icon, iconColor, title, value, subtitle, trend, trendDirection }: StatCardProps) {
-  const c = colorMap[iconColor];
+  const c = colorMap[iconColor] || colorMap.blue;
   const trendUp = trendDirection ? trendDirection === 'up' : (trend !== undefined && trend >= 0);
+
   return (
-    <div className="bg-white rounded-xl p-5 border border-[#e2e8f0] shadow-sm hover:bg-[#f8fafc] transition-colors">
+    <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200">
       <div className="flex items-start justify-between">
-        <div className={`w-12 h-12 rounded-xl ${c.bg} flex items-center justify-center ${c.icon}`}>
-          <Icon className="w-6 h-6" />
+        <div className={`w-12 h-12 rounded-xl ${c.bg} ring-1 ${c.ring} flex items-center justify-center`}>
+          <Icon className={`w-6 h-6 ${c.text}`} />
         </div>
         {trend !== undefined && (
-          <span className={`flex items-center gap-0.5 text-xs font-semibold ${trendUp ? 'text-emerald-600' : 'text-red-600'}`}>
-            {trendUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-            {Math.abs(trend)}%
+          <span className={`inline-flex items-center gap-0.5 text-xs font-semibold px-2 py-1 rounded-full ${
+            trendUp ? 'text-emerald-700 bg-emerald-50' : 'text-red-700 bg-red-50'
+          }`}>
+            {trendUp ? '↑' : '↓'} {Math.abs(trend)}%
           </span>
         )}
       </div>
-      <p className="text-[28px] font-bold mono text-[#0f172a] mt-3 leading-tight">{value}</p>
-      <p className="text-[13px] text-[#475569] mt-0.5">{title}</p>
-      {subtitle && <p className="text-xs text-[#94a3b8] mt-1">{subtitle}</p>}
+      <div className="mt-4">
+        <p className="text-2xl font-bold text-slate-900 font-mono">{value}</p>
+        <p className="text-sm font-medium text-slate-500 mt-1">{title}</p>
+        {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
+      </div>
     </div>
   );
 }

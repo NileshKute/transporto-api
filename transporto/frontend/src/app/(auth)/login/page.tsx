@@ -1,133 +1,164 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, Truck, Snowflake, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import toast from 'react-hot-toast';
-import { Truck, Eye, EyeOff, Loader2 } from 'lucide-react';
 
-const DEMO_ACCOUNTS = [
-  { role: 'Super Admin', email: 'admin@transporto.in', pass: 'admin123' },
-  { role: 'Manager', email: 'priya@transporto.in', pass: 'admin123' },
-  { role: 'Driver', email: 'rajesh@transporto.in', pass: 'driver123' },
+const demoAccounts = [
+  { role: 'Super Admin', email: 'admin@transporto.in', password: 'admin123', icon: '👨‍💼' },
+  { role: 'Manager', email: 'priya@transporto.in', password: 'admin123', icon: '👩‍💼' },
+  { role: 'Driver', email: 'rajesh@transporto.in', password: 'driver123', icon: '🚛' },
 ];
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const [email, setEmail] = useState('admin@transporto.in');
-  const [password, setPassword] = useState('admin123');
-  const [showPass, setShowPass] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
       await login(email, password);
-      toast.success('Welcome back!');
-      router.replace('/dashboard');
+      router.push('/dashboard');
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Something went wrong. Please try again.';
-      toast.error(msg);
+      setError(err.response?.data?.message || err.message || 'Login failed');
     } finally {
       setLoading(false);
     }
   };
 
+  const fillDemo = (account: typeof demoAccounts[0]) => {
+    setEmail(account.email);
+    setPassword(account.password);
+    setError('');
+  };
+
   return (
     <div className="min-h-screen flex">
-      {/* Left: Branded panel — 55% */}
-      <div
-        className="hidden lg:flex flex-col justify-between w-[55%] p-12 relative overflow-hidden"
-        style={{ background: 'linear-gradient(180deg, #0f2744 0%, #1e3a5f 100%)' }}
-      >
-        <div className="relative">
-          <div className="flex items-center gap-3 mb-10">
-            <span className="text-4xl">🚛</span>
-            <span className="text-[36px] font-extrabold text-white tracking-[0.2em]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              TRANSPORTO
-            </span>
-          </div>
-          <p className="text-base text-[#93c5fd] mb-12">Fleet & Cold Storage Management System</p>
-          <div className="space-y-5">
-            {[
-              { icon: '🚛', text: 'Track 50+ vehicles in real-time' },
-              { icon: '❄️', text: 'Monitor cold storage 24/7' },
-              { icon: '📊', text: 'Complete business analytics' },
-            ].map(({ icon, text }) => (
-              <div key={text} className="flex items-center gap-4 text-[#cbd5e1] text-sm">
-                <span className="text-xl">{icon}</span>
-                <span>{text}</span>
-              </div>
-            ))}
-          </div>
+      {/* Left Panel - Branding */}
+      <div className="hidden lg:flex lg:w-[55%] bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-20 left-20 w-72 h-72 bg-blue-500 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 right-20 w-96 h-96 bg-blue-400 rounded-full blur-3xl"></div>
         </div>
-        <p className="relative text-xs text-[#64748b]">Trusted by Indian transport businesses</p>
+
+        <div className="relative z-10 flex flex-col justify-center px-16 w-full">
+          <div className="mb-12">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-5xl">🚛</span>
+              <span className="text-4xl font-extrabold text-white tracking-tight">TRANSPORTO</span>
+            </div>
+            <p className="text-xl text-blue-200 font-medium">Fleet & Cold Storage Management System</p>
+          </div>
+
+          <div className="space-y-6">
+            <div className="flex items-center gap-4 text-blue-100">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <Truck className="w-6 h-6 text-blue-300" />
+              </div>
+              <div>
+                <p className="font-semibold text-white">Track Vehicles in Real-time</p>
+                <p className="text-sm text-blue-300">Monitor your entire fleet from one dashboard</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 text-blue-100">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <Snowflake className="w-6 h-6 text-blue-300" />
+              </div>
+              <div>
+                <p className="font-semibold text-white">Cold Storage Monitoring 24/7</p>
+                <p className="text-sm text-blue-300">Temperature alerts and live monitoring</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 text-blue-100">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <BarChart3 className="w-6 h-6 text-blue-300" />
+              </div>
+              <div>
+                <p className="font-semibold text-white">Complete Business Analytics</p>
+                <p className="text-sm text-blue-300">Fuel costs, trip reports, and more</p>
+              </div>
+            </div>
+          </div>
+
+          <p className="mt-16 text-sm text-slate-500">Trusted by Indian transport businesses</p>
+        </div>
       </div>
 
-      {/* Right: Login form — 45% */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-white">
-        <div className="w-full max-w-[400px]">
-          <h2 className="text-2xl font-bold text-[#0f172a] mb-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            Welcome back
-          </h2>
-          <p className="text-sm text-[#475569] mb-8">Sign in to your account</p>
+      {/* Right Panel - Login Form */}
+      <div className="w-full lg:w-[45%] flex items-center justify-center p-8 bg-white">
+        <div className="w-full max-w-md">
+          <div className="lg:hidden flex items-center gap-2 mb-8">
+            <span className="text-3xl">🚛</span>
+            <span className="text-2xl font-bold text-slate-900">TRANSPORTO</span>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome back</h1>
+          <p className="text-slate-500 mb-8">Sign in to your account</p>
+
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-2">Email</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={e => setEmail(e.target.value)}
+                className="w-full h-12 px-4 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
                 placeholder="you@company.com"
                 required
-                autoComplete="email"
-                className="h-12 rounded-lg border border-[#cbd5e1] focus:border-[#3b82f6] focus:ring-2 focus:ring-[#dbeafe]"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-2">Password</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
               <div className="relative">
                 <input
-                  type={showPass ? 'text' : 'password'}
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full h-12 px-4 pr-12 rounded-lg border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
                   placeholder="••••••••"
                   required
-                  autoComplete="current-password"
-                  className="h-12 rounded-lg border border-[#cbd5e1] focus:border-[#3b82f6] focus:ring-2 focus:ring-[#dbeafe] w-full pr-12"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94a3b8] hover:text-[#0f172a]"
-                >
-                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3.5 text-slate-400 hover:text-slate-600">
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-12 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/30"
             >
-              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in...</> : 'Sign In'}
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
           <div className="mt-8">
-            <p className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-3">Demo Accounts</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Demo Accounts</p>
             <div className="space-y-2">
-              {DEMO_ACCOUNTS.map(({ role, email: e, pass }) => (
+              {demoAccounts.map(account => (
                 <button
-                  key={e}
-                  type="button"
-                  onClick={() => { setEmail(e); setPassword(pass); }}
-                  className="w-full flex items-center justify-between p-3 rounded-lg bg-[#f1f5f9] hover:bg-[#eff6ff] border border-transparent hover:border-[#e2e8f0] transition-colors text-left"
+                  key={account.email}
+                  onClick={() => fillDemo(account)}
+                  className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all text-left group"
                 >
-                  <span className="text-sm font-medium text-[#0f172a]">{role}</span>
-                  <span className="text-xs text-[#94a3b8] font-mono">{e}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">{account.icon}</span>
+                    <span className="text-sm font-medium text-slate-700 group-hover:text-blue-700">{account.role}</span>
+                  </div>
+                  <span className="text-xs text-slate-400 font-mono">{account.email}</span>
                 </button>
               ))}
             </div>

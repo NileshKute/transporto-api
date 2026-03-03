@@ -49,63 +49,72 @@ export default function DriversPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-[#0f172a]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Drivers</h2>
-          <p className="text-sm text-[#475569] mt-0.5">Manage fleet drivers</p>
+        <h2 className="text-2xl font-bold text-slate-900">Drivers</h2>
+        <p className="text-sm text-slate-500 mt-0.5">Manage fleet drivers</p>
         </div>
         <button onClick={() => { setForm({}); setEditDriver(null); setModalOpen(true); }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition-colors">
           <Plus className="w-4 h-4" /> Add Driver
         </button>
       </div>
 
-      <div className="bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-sm flex flex-wrap gap-3">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-5 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search name, phone, license..." className="h-10 pl-10 rounded-lg border border-[#cbd5e1] text-sm w-full" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search name, phone, license..." className="h-10 pl-10 rounded-lg border border-slate-300 text-sm text-slate-900 w-full" />
         </div>
-        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="h-10 w-40 rounded-lg border border-[#cbd5e1] text-sm">
+        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="h-10 w-40 rounded-lg border border-slate-300 text-sm text-slate-700">
           <option value="">All Statuses</option>
           {STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
         </select>
       </div>
 
-      <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message="No drivers found" /> : (
           <div className="overflow-x-auto">
-            <table>
+            <table className="w-full">
               <thead>
-                <tr><th>Driver</th><th>Phone</th><th>License</th><th>Experience</th><th>Rating</th><th>Status</th><th>Vehicle</th><th>Actions</th></tr>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Driver</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Phone</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">License</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Experience</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Rating</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Vehicle</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</th>
+                </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {data.data.map((d: any) => (
-                  <tr key={d.id}>
-                    <td>
+                  <tr key={d.id} className="hover:bg-blue-50/50 transition-colors">
+                    <td className="px-4 py-3.5">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-[#dbeafe] flex items-center justify-center text-[#2563eb] font-semibold text-sm flex-shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-sm flex-shrink-0">
                           {d.name?.charAt(0)}
                         </div>
                         <div>
-                          <p className="font-medium text-[#0f172a] text-sm">{d.name}</p>
-                          <p className="text-xs text-[#94a3b8]">{d.city || '—'}</p>
+                          <p className="font-medium text-slate-900 text-sm">{d.name}</p>
+                          <p className="text-xs text-slate-500">{d.city || '—'}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="mono text-sm text-[#475569]">{d.phone}</td>
-                    <td className="mono text-xs text-[#475569]">{d.licenseNumber}</td>
-                    <td className="text-[#475569]">{d.experience ?? '—'} yrs</td>
-                    <td>
+                    <td className="px-4 py-3.5 text-sm text-slate-700 font-mono">{d.phone}</td>
+                    <td className="px-4 py-3.5 text-xs text-slate-700 font-mono">{d.licenseNumber}</td>
+                    <td className="px-4 py-3.5 text-slate-700">{d.experience ?? '—'} yrs</td>
+                    <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1 text-amber-600">
                         <Star className="w-3.5 h-3.5 fill-current" />
-                        <span className="text-sm font-medium mono">{(d.rating ?? 0).toFixed(1)}</span>
+                        <span className="text-sm font-medium font-mono">{(d.rating ?? 0).toFixed(1)}</span>
                       </div>
                     </td>
-                    <td><StatusBadge status={d.status} /></td>
-                    <td className="text-[#94a3b8] text-xs mono">{d.assignments?.[0]?.vehicle?.regNumber || '—'}</td>
-                    <td>
+                    <td className="px-4 py-3.5"><StatusBadge status={d.status} /></td>
+                    <td className="px-4 py-3.5 text-slate-500 text-xs font-mono">{d.assignments?.[0]?.vehicle?.regNumber || '—'}</td>
+                    <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1">
-                        <Link href={`/drivers/${d.id}`} className="p-2 text-[#2563eb] hover:bg-[#eff6ff] rounded-lg transition-colors"><Eye className="w-4 h-4" /></Link>
-                        <button onClick={() => { setForm({ ...d }); setEditDriver(d); setModalOpen(true); }} className="p-2 text-[#94a3b8] hover:bg-[#f1f5f9] rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
-                        <button onClick={() => setDeleteId(d.id)} className="p-2 text-[#94a3b8] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                        <Link href={`/drivers/${d.id}`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Eye className="w-4 h-4" /></Link>
+                        <button onClick={() => { setForm({ ...d }); setEditDriver(d); setModalOpen(true); }} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => setDeleteId(d.id)} className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>

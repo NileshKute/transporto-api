@@ -41,34 +41,42 @@ export default function FuelPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-[#0f172a]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Fuel</h2>
-          <p className="text-sm text-[#475569] mt-0.5">Track fuel consumption and costs</p>
+        <h2 className="text-2xl font-bold text-slate-900">Fuel</h2>
+        <p className="text-sm text-slate-500 mt-0.5">Track fuel consumption and costs</p>
         </div>
-        <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+        <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition-colors">
           <Plus className="w-4 h-4" /> Add Fuel Entry
         </button>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
         <StatCard icon={Fuel} iconColor="amber" title="Total Entries" value={stats?.totalEntries ?? 0} />
         <StatCard icon={Droplets} iconColor="blue" title="Total Liters" value={`${stats?.totalLiters?.toFixed(0) ?? 0} L`} />
         <StatCard icon={DollarSign} iconColor="amber" title="Total Cost" value={formatCurrency(stats?.totalCost)} />
         <StatCard icon={Gauge} iconColor="green" title="Avg Rate (₹/L)" value={stats?.avgRatePerLiter != null ? `₹${stats.avgRatePerLiter.toFixed(2)}` : '—'} />
       </div>
 
-      <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message="No fuel entries" /> : (
           <div className="overflow-x-auto">
-            <table>
-              <thead><tr><th>Vehicle</th><th>Liters</th><th>Cost</th><th>Station</th><th>Date</th></tr></thead>
-              <tbody>
+            <table className="w-full">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Vehicle</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Liters</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Cost</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Station</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
                 {data.data.map((f: any) => (
-                  <tr key={f.id}>
-                    <td className="mono font-semibold text-[#0f172a]">{f.vehicle?.regNumber}</td>
-                    <td className="mono text-[#475569]">{f.liters} L</td>
-                    <td className="mono font-semibold text-emerald-600">{formatCurrency(f.totalCost)}</td>
-                    <td className="text-sm text-[#475569]">{f.fuelStation || '—'}</td>
-                    <td className="text-sm text-[#94a3b8]">{formatDate(f.date)}</td>
+                  <tr key={f.id} className="hover:bg-blue-50/50 transition-colors">
+                    <td className="px-4 py-3.5 text-sm text-slate-700 font-mono font-semibold">{f.vehicle?.regNumber}</td>
+                    <td className="px-4 py-3.5 text-sm text-slate-700 font-mono">{f.liters} L</td>
+                    <td className="px-4 py-3.5 text-sm text-slate-700 font-mono font-semibold text-emerald-600">{formatCurrency(f.totalCost)}</td>
+                    <td className="px-4 py-3.5 text-sm text-slate-700">{f.fuelStation || '—'}</td>
+                    <td className="px-4 py-3.5 text-sm text-slate-500">{formatDate(f.date)}</td>
                   </tr>
                 ))}
               </tbody>
