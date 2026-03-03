@@ -687,11 +687,11 @@ model WhatsAppMessage {
   id                String                    @id @default(uuid())
   driverId          String?
   driver            Driver?                   @relation(fields: [driverId], references: [id])
-  fromPhone         String                    @db.VarChar(20)
-  toPhone           String?                   @db.VarChar(20)
+  fromPhone         String                    @db.VarChar(50)
+  toPhone           String?                   @db.VarChar(50)
   direction         WhatsAppMessageDirection  @default(INBOUND)
-  message           String
-  mediaUrl          String?
+  message           String                    @db.Text
+  mediaUrl          String?                   @db.Text
   parsedType        String?
   parsedData        Json?
   confidence        Float?
@@ -700,9 +700,9 @@ model WhatsAppMessage {
   errorReason       String?
   processedAt       DateTime?
   twilioSid         String?
-  twilioMessageSid  String?
-  twilioStatus      String?
-  autoReplyText     String?
+  twilioMessageSid  String?                   @db.VarChar(100)
+  twilioStatus      String?                   @db.VarChar(50)
+  autoReplyText     String?                   @db.Text
   receivedAt        DateTime                  @default(now())
 
   @@index([driverId])
