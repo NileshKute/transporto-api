@@ -1,13 +1,13 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WhatsAppParserService, ParsedResult } from './whatsapp-parser.service';
-import twilio from 'twilio';
+import * as Twilio from 'twilio';
 
 const CONFIDENCE_THRESHOLD = 0.7;
 
 @Injectable()
 export class WhatsAppService {
-  private twilioClient: ReturnType<typeof twilio> | null = null;
+  private twilioClient: InstanceType<typeof Twilio.Twilio> | null = null;
 
   constructor(
     private prisma: PrismaService,
@@ -16,7 +16,7 @@ export class WhatsAppService {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     if (accountSid && authToken) {
-      this.twilioClient = twilio(accountSid, authToken);
+      this.twilioClient = new Twilio.Twilio(accountSid, authToken);
     }
   }
 
@@ -61,7 +61,7 @@ export class WhatsAppService {
     params: Record<string, string>,
   ): boolean {
     if (!authToken || !signature) return false;
-    return twilio.validateRequest(authToken, signature, url, params);
+    return Twilio.validateRequest(authToken, signature, url, params);
   }
 
   /**
