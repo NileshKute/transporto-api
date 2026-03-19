@@ -12,6 +12,8 @@ import { ColdStorageModule } from './modules/cold-storage/cold-storage.module';
 import { ShiftsModule } from './modules/shifts/shifts.module';
 import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { ClientModule } from './modules/client/client.module';
+import { InvoiceModule } from './modules/invoice/invoice.module';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     ColdStorageModule,
     ShiftsModule,
     WhatsAppModule,
+    ClientModule,
+    InvoiceModule,
   ],
 })
 export class AppModule {}

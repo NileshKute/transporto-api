@@ -54,6 +54,8 @@ async function bootstrap() {
     .addTag('Cold Storage', 'Cold storage unit monitoring')
     .addTag('Shifts', 'Driver shift management')
     .addTag('WhatsApp', 'WhatsApp message integration')
+    .addTag('Clients', 'Billing clients and vehicle assignments')
+    .addTag('Invoices', 'Invoice generation and PDF')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
