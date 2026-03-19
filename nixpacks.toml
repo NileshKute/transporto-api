@@ -2,10 +2,10 @@
 nixPkgs = ["nodejs_18"]
 
 [phases.install]
-cmds = ["npm ci --include=dev"]
+cmds = ["npm install"]
 
 [phases.build]
-cmds = ["npx prisma generate", "npm run build"]
+cmds = ["npx prisma generate", "npx nest build", "ls -la dist/"]
 
 [start]
 cmd = "node dist/main.js"
