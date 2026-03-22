@@ -2,6 +2,27 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { amountInWords } from './invoice.utils';
 
+function normalizeLineItem(li: any, invoiceId: string) {
+  return {
+    invoiceId,
+    vehicleId: li.vehicleId || li.vehicle_id || null,
+    vehicleRegNumber:
+      li.vehicleRegNumber ||
+      li.regNumber ||
+      li.vehicle_reg_number ||
+      li.vehicleNo ||
+      'N/A',
+    description: li.description || li.route || '',
+    billingType: li.billingType || li.billing_type || 'MONTHLY_CONTRACT',
+    tripCount: Number(li.tripCount ?? li.trip_count ?? 0) || 0,
+    daysCount: li.daysCount ?? li.days_count ?? null,
+    rate: Number(li.rate ?? 0) || 0,
+    weight: li.weight != null ? Number(li.weight) : 0,
+    advance: li.advance != null ? Number(li.advance) : 0,
+    amount: Number(li.amount ?? 0) || 0,
+  };
+}
+
 @Injectable()
 export class InvoiceService {
   constructor(private prisma: PrismaService) {}
@@ -104,27 +125,15 @@ export class InvoiceService {
 
     if (dto.lineItems?.length) {
       await this.prisma.invoiceLineItem.createMany({
-        data: dto.lineItems.map((li: any) => ({
-          invoiceId: invoice.id,
-          vehicleId: li.vehicleId,
-          vehicleRegNumber: li.vehicleRegNumber,
-          description: li.description ?? '',
-          billingType: (li.billingType as any) ?? 'MONTHLY_CONTRACT',
-          tripCount: li.tripCount ?? 0,
-          daysCount: li.daysCount,
-          rate: Number(li.rate ?? 0),
-          weight: li.weight != null ? Number(li.weight) : undefined,
-          advance: Number(li.advance ?? 0),
-          amount: Number(li.amount ?? 0),
-        })),
+        data: dto.lineItems.map((li: any) => normalizeLineItem(li, invoice.id)),
       });
     }
     if (dto.deductions?.length) {
       await this.prisma.invoiceDeduction.createMany({
         data: dto.deductions.map((d: any) => ({
           invoiceId: invoice.id,
-          description: d.description,
-          amount: Number(d.amount),
+          description: d.description || '',
+          amount: Number(d.amount ?? 0) || 0,
         })),
       });
     }
@@ -150,19 +159,7 @@ export class InvoiceService {
       if (dto.lineItems?.length) {
         await this.prisma.invoiceLineItem.deleteMany({ where: { invoiceId: id } });
         await this.prisma.invoiceLineItem.createMany({
-          data: dto.lineItems.map((li: any) => ({
-            invoiceId: id,
-            vehicleId: li.vehicleId,
-            vehicleRegNumber: li.vehicleRegNumber,
-            description: li.description ?? '',
-            billingType: (li.billingType as any) ?? 'MONTHLY_CONTRACT',
-            tripCount: li.tripCount ?? 0,
-            daysCount: li.daysCount,
-            rate: Number(li.rate ?? 0),
-            weight: li.weight != null ? Number(li.weight) : undefined,
-            advance: Number(li.advance ?? 0),
-            amount: Number(li.amount ?? 0),
-          })),
+          data: dto.lineItems.map((li: any) => normalizeLineItem(li, id)),
         });
         subtotal = dto.lineItems.reduce((s: number, li: any) => s + Number(li.amount ?? 0), 0);
       }
@@ -171,11 +168,11 @@ export class InvoiceService {
         await this.prisma.invoiceDeduction.createMany({
           data: dto.deductions.map((d: any) => ({
             invoiceId: id,
-            description: d.description,
-            amount: Number(d.amount),
+            description: d.description || '',
+            amount: Number(d.amount ?? 0) || 0,
           })),
         });
-        totalDeductions = dto.deductions.reduce((s: number, d: any) => s + Number(d.amount), 0);
+        totalDeductions = dto.deductions.reduce((s: number, d: any) => s + Number(d.amount ?? 0), 0);
       }
       const totalAmount = subtotal - totalDeductions;
       updateData.subtotal = subtotal;
