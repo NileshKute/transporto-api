@@ -14,6 +14,7 @@ import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ClientModule } from './modules/client/client.module';
 import { InvoiceModule } from './modules/invoice/invoice.module';
+import { DriverLedgerModule } from './modules/driver-ledger/driver-ledger.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { InvoiceModule } from './modules/invoice/invoice.module';
     WhatsAppModule,
     ClientModule,
     InvoiceModule,
+    DriverLedgerModule,
   ],
 })
 export class AppModule {}

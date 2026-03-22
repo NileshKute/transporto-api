@@ -221,6 +221,28 @@ enum NotificationType {
   SYSTEM
 }
 
+enum LedgerEntryType {
+  SALARY
+  ADVANCE
+  ADVANCE_RECOVERY
+  EXTRA_DUTY
+  BONUS
+  PENALTY
+  FOOD
+  FUEL_ADVANCE
+  TOLL
+  MAINTENANCE
+  OTHER
+}
+
+enum SalaryStatus {
+  PENDING
+  CALCULATED
+  APPROVED
+  PAID
+  PARTIAL
+}
+
 enum BillingType {
   MONTHLY_CONTRACT
   ADHOC
@@ -349,6 +371,9 @@ model Driver {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
+  baseSalary       Decimal?  @db.Decimal(12, 2)
+  employeeCode     String?   @db.VarChar(20)
+
   trips            Trip[]
   fuelEntries      FuelEntry[]
   emergencies      Emergency[]
@@ -356,6 +381,8 @@ model Driver {
   whatsappMessages WhatsAppMessage[]
   assignments      DriverVehicleAssignment[]
   attendances      DriverAttendance[]
+  ledgerEntries    DriverLedger[]
+  salaryRecords    DriverSalary[]
 
   @@index([phone])
   @@index([licenseNumber])
@@ -878,4 +905,58 @@ model Setting {
   label String @db.VarChar(100)
 
   @@map("settings")
+}
+
+model DriverLedger {
+  id            String          @id @default(uuid())
+  driverId      String
+  driver        Driver          @relation(fields: [driverId], references: [id])
+  date          DateTime
+  type          LedgerEntryType
+  category      String?         @db.VarChar(50)
+  description   String          @db.Text
+  amount        Decimal         @db.Decimal(12, 2)
+  isCredit      Boolean
+  balanceAfter  Decimal?        @db.Decimal(12, 2)
+  tripId        String?
+  approvedBy    String?
+  notes         String?         @db.Text
+  month         Int?
+  year          Int?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([driverId])
+  @@index([driverId, date])
+  @@index([driverId, month, year])
+  @@index([type])
+  @@map("driver_ledger")
+}
+
+model DriverSalary {
+  id            String       @id @default(uuid())
+  driverId      String
+  driver        Driver       @relation(fields: [driverId], references: [id])
+  month         Int
+  year          Int
+  baseSalary    Decimal      @db.Decimal(12, 2)
+  totalAdvances Decimal      @db.Decimal(12, 2) @default(0)
+  extraDutyPay  Decimal      @db.Decimal(12, 2) @default(0)
+  bonuses       Decimal      @db.Decimal(12, 2) @default(0)
+  penalties     Decimal      @db.Decimal(12, 2) @default(0)
+  otherCredits  Decimal      @db.Decimal(12, 2) @default(0)
+  otherDebits   Decimal      @db.Decimal(12, 2) @default(0)
+  netPayable    Decimal      @db.Decimal(12, 2) @default(0)
+  status        SalaryStatus @default(PENDING)
+  paidAmount    Decimal      @db.Decimal(12, 2) @default(0)
+  paidDate      DateTime?
+  notes         String?      @db.Text
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([driverId, month, year])
+  @@index([driverId])
+  @@index([month, year])
+  @@index([status])
+  @@map("driver_salaries")
 }
