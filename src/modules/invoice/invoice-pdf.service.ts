@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import * as fs from 'fs';
-import * as path from 'path';
 import PDFDocument from 'pdfkit';
 
 const COMPANY = {
   name: 'G K ENTERPRISE',
   type: 'FLEET OWNERS & TRANSPORT CONTRACTORS',
-  address: 'Office 402, SHREE GANESH CHS LTD, PLOT NO 151 PHASE 11, NAVDE, TALOJA, PANVEL, NAVI MUMBAI 410208',
+  address:
+    'Office 402, SHREE GANESH CHS LTD, PLOT NO 151 PHASE 11, NAVDE, TALOJA, PANVEL, NAVI MUMBAI 410208',
   proprietor: 'Ganesh Kute',
   mobile: '9324540988',
   email: 'ganesh@gkenterprise.in',
@@ -38,51 +37,73 @@ function formatDate(d: Date): string {
 
 @Injectable()
 export class InvoicePdfService {
-  private uploadsDir: string;
-
-  constructor() {
-    this.uploadsDir = path.join(process.cwd(), 'uploads', 'invoices');
-    if (!fs.existsSync(this.uploadsDir)) {
-      fs.mkdirSync(this.uploadsDir, { recursive: true });
-    }
-  }
-
-  async generate(invoice: any): Promise<{ path: string; url: string }> {
+  /**
+   * Generate the invoice PDF entirely in memory and return a Buffer.
+   * No filesystem writes — safe for read-only hosts like Railway.
+   */
+  async generate(invoice: any): Promise<Buffer> {
     const client = invoice.client;
     const lineItems = invoice.lineItems || [];
     const deductions = invoice.deductions || [];
-    const safeNumber = (invoice.invoiceNumber || '').replace(/\//g, '-');
-    const filename = `invoice-${safeNumber}.pdf`;
-    const filePath = path.join(this.uploadsDir, filename);
 
     const doc = new PDFDocument({ size: 'A4', margin: 40 });
-    const stream = fs.createWriteStream(filePath);
-    doc.pipe(stream);
+    const chunks: Buffer[] = [];
+
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+    const done = new Promise<Buffer>((resolve, reject) => {
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+    });
 
     const pageWidth = 595.28;
     const col = (x: number) => 40 + x;
 
-    // Header
-    doc.fontSize(18).font('Helvetica-Bold').text(COMPANY.name, 40, 40, { align: 'center', width: pageWidth - 80 });
-    doc.fontSize(10).font('Helvetica').text(COMPANY.type, 40, 60, { align: 'center', width: pageWidth - 80 });
-    doc.fontSize(9).text(COMPANY.address, 40, 76, { align: 'center', width: pageWidth - 80 });
-    doc.text(`Mob: ${COMPANY.mobile}  |  ${COMPANY.email}`, 40, 92, { align: 'center', width: pageWidth - 80 });
-    doc.text(`GSTIN: ${COMPANY.gst}  |  PAN: ${COMPANY.pan}`, 40, 104, { align: 'center', width: pageWidth - 80 });
+    // --- Header ---
+    doc
+      .fontSize(18)
+      .font('Helvetica-Bold')
+      .text(COMPANY.name, 40, 40, { align: 'center', width: pageWidth - 80 });
+    doc
+      .fontSize(10)
+      .font('Helvetica')
+      .text(COMPANY.type, 40, 60, { align: 'center', width: pageWidth - 80 });
+    doc.fontSize(9).text(COMPANY.address, 40, 76, {
+      align: 'center',
+      width: pageWidth - 80,
+    });
+    doc.text(
+      `Mob: ${COMPANY.mobile}  |  ${COMPANY.email}`,
+      40,
+      92,
+      { align: 'center', width: pageWidth - 80 },
+    );
+    doc.text(
+      `GSTIN: ${COMPANY.gst}  |  PAN: ${COMPANY.pan}`,
+      40,
+      104,
+      { align: 'center', width: pageWidth - 80 },
+    );
 
     doc.moveDown();
     doc.moveTo(40, 125).lineTo(pageWidth - 40, 125).stroke();
     doc.moveDown(0.5);
 
-    // Bill details
-    doc.fontSize(10).font('Helvetica-Bold').text(`Bill No: ${invoice.invoiceNumber}`, 40, 132);
-    doc.font('Helvetica').text(`Date: ${formatDate(invoice.issueDate)}`, pageWidth - 140, 132);
+    // --- Bill details ---
+    doc
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .text(`Bill No: ${invoice.invoiceNumber}`, 40, 132);
+    doc
+      .font('Helvetica')
+      .text(`Date: ${formatDate(invoice.issueDate)}`, pageWidth - 140, 132);
     doc.font('Helvetica').text(`M/S: ${client?.name || ''}`, 40, 148);
     doc.text(`GSTIN: ${client?.gstNumber || 'N/A'}`, 40, 160);
 
     doc.moveDown(0.5);
     doc.moveTo(40, 178).lineTo(pageWidth - 40, 178).stroke();
 
-    // Table header
+    // --- Table header ---
     const tableTop = 188;
     doc.fontSize(9).font('Helvetica-Bold');
     doc.text('Sr', col(0), tableTop, { width: 18 });
@@ -93,7 +114,10 @@ export class InvoicePdfService {
     doc.text('Rate', col(282), tableTop, { width: 48 });
     doc.text('Amount', col(332), tableTop, { width: 80 });
 
-    doc.moveTo(40, tableTop + 14).lineTo(pageWidth - 40, tableTop + 14).stroke();
+    doc
+      .moveTo(40, tableTop + 14)
+      .lineTo(pageWidth - 40, tableTop + 14)
+      .stroke();
 
     let y = tableTop + 20;
     doc.font('Helvetica');
@@ -102,8 +126,10 @@ export class InvoicePdfService {
       const sr = idx + 1;
       const veh = (item.vehicleRegNumber || '').toString();
       const desc = (item.description || '').toString().slice(0, 28);
-      const trip = item.billingType === 'ADHOC' ? String(item.tripCount ?? 0) : '-';
-      const days = item.daysCount != null ? String(Number(item.daysCount)) : '-';
+      const trip =
+        item.billingType === 'ADHOC' ? String(item.tripCount ?? 0) : '-';
+      const days =
+        item.daysCount != null ? String(Number(item.daysCount)) : '-';
       const rate = formatIndianNumber(Number(item.rate ?? 0));
       const amt = formatIndianNumber(Number(item.amount ?? 0));
 
@@ -120,28 +146,36 @@ export class InvoicePdfService {
     doc.moveTo(40, y).lineTo(pageWidth - 40, y).stroke();
     y += 12;
 
+    // --- Totals ---
     const subtotal = Number(invoice.subtotal ?? 0);
-    const totalDeductions = Number(invoice.totalDeductions ?? 0);
     const totalAmount = Number(invoice.totalAmount ?? 0);
 
-    doc.text(`Subtotal:`, pageWidth - 220, y);
+    doc.text('Subtotal:', pageWidth - 220, y);
     doc.text(formatIndianNumber(subtotal), pageWidth - 120, y, { width: 80 });
     y += 16;
 
     deductions.forEach((d: any) => {
       doc.text(`${(d.description || '').toString()}:`, pageWidth - 220, y);
-      doc.text(`-${formatIndianNumber(Number(d.amount ?? 0))}`, pageWidth - 120, y, { width: 80 });
+      doc.text(
+        `-${formatIndianNumber(Number(d.amount ?? 0))}`,
+        pageWidth - 120,
+        y,
+        { width: 80 },
+      );
       y += 14;
     });
 
     doc.font('Helvetica-Bold');
-    doc.text(`TOTAL:`, pageWidth - 220, y);
-    doc.text(formatIndianNumber(totalAmount), pageWidth - 120, y, { width: 80 });
+    doc.text('TOTAL:', pageWidth - 220, y);
+    doc.text(formatIndianNumber(totalAmount), pageWidth - 120, y, {
+      width: 80,
+    });
     y += 20;
 
     doc.moveTo(40, y).lineTo(pageWidth - 40, y).stroke();
     y += 10;
 
+    // --- Amount in words ---
     doc.font('Helvetica').fontSize(9);
     const words = (invoice.amountInWords || '').toString();
     doc.text('Amount in words: ' + words, 40, y, { width: pageWidth - 80 });
@@ -150,6 +184,7 @@ export class InvoicePdfService {
     doc.moveTo(40, y).lineTo(pageWidth - 40, y).stroke();
     y += 14;
 
+    // --- Bank details / footer ---
     doc.fontSize(9).text(`Bank: ${COMPANY.bank}, ${COMPANY.branch}`, 40, y);
     y += 12;
     doc.text(`A/c: ${COMPANY.accountNo}  |  IFSC: ${COMPANY.ifsc}`, 40, y);
@@ -158,7 +193,11 @@ export class InvoicePdfService {
     y += 12;
     doc.text('Note: Payment under reverse charge', 40, y);
     y += 12;
-    doc.text(`Terms: Payment within ${invoice.client?.paymentTermsDays ?? 15} days`, 40, y);
+    doc.text(
+      `Terms: Payment within ${invoice.client?.paymentTermsDays ?? 15} days`,
+      40,
+      y,
+    );
     y += 20;
 
     doc.moveTo(40, y).lineTo(pageWidth - 40, y).stroke();
@@ -171,12 +210,6 @@ export class InvoicePdfService {
 
     doc.end();
 
-    await new Promise<void>((resolve, reject) => {
-      stream.on('finish', () => resolve());
-      stream.on('error', reject);
-    });
-
-    const url = `/uploads/invoices/${filename}`;
-    return { path: filePath, url };
+    return done;
   }
 }

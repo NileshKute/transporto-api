@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Res, UseGuards } from '@nestjs/common';
+import { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { InvoiceService } from './invoice.service';
+import { InvoicePdfService } from './invoice-pdf.service';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 
@@ -10,7 +12,10 @@ import { Roles } from '../../common/decorators/roles.decorator';
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('invoices')
 export class InvoiceController {
-  constructor(private invoiceService: InvoiceService) {}
+  constructor(
+    private invoiceService: InvoiceService,
+    private pdfService: InvoicePdfService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List invoices with filters' })
@@ -59,9 +64,17 @@ export class InvoiceController {
 
   @Post(':id/generate-pdf')
   @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
-  @ApiOperation({ summary: 'Generate PDF and return download URL/path' })
-  generatePdf(@Param('id') id: string) {
-    return this.invoiceService.generatePdf(id);
+  @ApiOperation({ summary: 'Generate PDF in memory and stream it back' })
+  async generatePdf(@Param('id') id: string, @Res() res: Response) {
+    const invoice = await this.invoiceService.findOne(id);
+    const pdfBuffer = await this.pdfService.generate(invoice);
+    const safeNumber = (invoice.invoiceNumber || '').replace(/\//g, '-');
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="invoice-${safeNumber}.pdf"`,
+      'Content-Length': pdfBuffer.length,
+    });
+    res.end(pdfBuffer);
   }
 
   @Put(':id/status')

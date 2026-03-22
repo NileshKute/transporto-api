@@ -1,50 +1,63 @@
 /**
- * Convert amount to Indian Rupee words (Lakh, Thousand, Hundred).
- * e.g. 307838 → "RUPEES THREE LAKH SEVEN THOUSAND EIGHT HUNDRED THIRTY EIGHT ONLY"
+ * Convert amount to Indian Rupee words (Crore, Lakh, Thousand, Hundred).
+ * e.g. 305238 → "RUPEES THREE LAKH FIVE THOUSAND TWO HUNDRED THIRTY EIGHT ONLY"
+ *
+ * "ONLY" appears exactly once, at the end.
  */
-export function amountInWords(amount: number): string {
+export function amountInWords(amount: number | string): string {
+  const n = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (!Number.isFinite(n) || n <= 0) return 'RUPEES ZERO ONLY';
+
   const ones = [
-    '',
-    'ONE',
-    'TWO',
-    'THREE',
-    'FOUR',
-    'FIVE',
-    'SIX',
-    'SEVEN',
-    'EIGHT',
-    'NINE',
-    'TEN',
-    'ELEVEN',
-    'TWELVE',
-    'THIRTEEN',
-    'FOURTEEN',
-    'FIFTEEN',
-    'SIXTEEN',
-    'SEVENTEEN',
-    'EIGHTEEN',
-    'NINETEEN',
+    '', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN',
+    'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN',
+    'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN',
   ];
-  const tens = ['', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY'];
+  const tens = [
+    '', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY',
+    'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY',
+  ];
 
-  if (amount === 0) return 'ZERO ONLY';
-
-  const rupees = Math.floor(amount);
-  const paise = Math.round((amount - rupees) * 100);
-
-  function convertToWords(n: number): string {
-    if (n === 0) return '';
-    if (n < 20) return ones[n];
-    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
-    if (n < 1000) return ones[Math.floor(n / 100)] + ' HUNDRED' + (n % 100 ? ' ' + convertToWords(n % 100) : '');
-    if (n < 100000) return convertToWords(Math.floor(n / 1000)) + ' THOUSAND' + (n % 1000 ? ' ' + convertToWords(n % 1000) : '');
-    if (n < 10000000) return convertToWords(Math.floor(n / 100000)) + ' LAKH' + (n % 100000 ? ' ' + convertToWords(n % 100000) : '');
-    return convertToWords(Math.floor(n / 10000000)) + ' CRORE' + (n % 10000000 ? ' ' + convertToWords(n % 10000000) : '');
+  function convert(num: number): string {
+    if (num === 0) return '';
+    if (num < 20) return ones[num];
+    if (num < 100) {
+      return (tens[Math.floor(num / 10)] + (num % 10 ? ' ' + ones[num % 10] : '')).trim();
+    }
+    if (num < 1000) {
+      return (ones[Math.floor(num / 100)] + ' HUNDRED' + (num % 100 ? ' ' + convert(num % 100) : '')).trim();
+    }
+    if (num < 100000) {
+      return (convert(Math.floor(num / 1000)) + ' THOUSAND' + (num % 1000 ? ' ' + convert(num % 1000) : '')).trim();
+    }
+    if (num < 10000000) {
+      return (convert(Math.floor(num / 100000)) + ' LAKH' + (num % 100000 ? ' ' + convert(num % 100000) : '')).trim();
+    }
+    return (convert(Math.floor(num / 10000000)) + ' CRORE' + (num % 10000000 ? ' ' + convert(num % 10000000) : '')).trim();
   }
 
-  let result = 'RUPEES ' + convertToWords(rupees);
-  if (paise > 0) result += ' AND ' + convertToWords(paise) + ' PAISE';
-  return result + ' ONLY';
+  const rupees = Math.floor(n);
+  const paise = Math.round((n - rupees) * 100);
+
+  const parts: string[] = ['RUPEES'];
+
+  if (rupees > 0) {
+    parts.push(convert(rupees));
+  } else {
+    parts.push('ZERO');
+  }
+
+  if (paise > 0) {
+    parts.push('AND', convert(paise), 'PAISE');
+  }
+
+  parts.push('ONLY');
+
+  return parts
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 /** Format number in Indian style (e.g. 3,07,838) */

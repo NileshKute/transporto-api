@@ -1,14 +1,10 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { InvoicePdfService } from './invoice-pdf.service';
 import { amountInWords } from './invoice.utils';
 
 @Injectable()
 export class InvoiceService {
-  constructor(
-    private prisma: PrismaService,
-    private invoicePdfService: InvoicePdfService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async getNextInvoiceNumber(): Promise<string> {
     const now = new Date();
@@ -201,16 +197,6 @@ export class InvoiceService {
     return { success: true };
   }
 
-  async generatePdf(id: string): Promise<{ pdfUrl: string }> {
-    const invoice = await this.findOne(id);
-    const { path, url } = await this.invoicePdfService.generate(invoice as any);
-    await this.prisma.invoice.update({
-      where: { id },
-      data: { pdfUrl: url ?? path },
-    });
-    return { pdfUrl: url ?? path };
-  }
-
   async updateStatus(id: string, status: string) {
     const inv = await this.prisma.invoice.findUnique({ where: { id } });
     if (!inv) throw new NotFoundException('Invoice not found');
@@ -275,7 +261,12 @@ export class InvoiceService {
     const lineItems: any[] = [];
 
     for (const cv of client.clientVehicles) {
-      const regNumber = cv.vehicle.regNumber;
+      const vehicle = cv.vehicle as Record<string, any>;
+      const regNumber =
+        vehicle.regNumber ||
+        vehicle.registrationNumber ||
+        vehicle.reg_number ||
+        `Vehicle ${cv.vehicleId.slice(-6)}`;
       const description = cv.route || 'Monthly / Trip billing';
       const billingType = cv.billingType;
 
