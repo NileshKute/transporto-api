@@ -4,212 +4,354 @@ import * as PDFDocument from 'pdfkit';
 const COMPANY = {
   name: 'G K ENTERPRISE',
   type: 'FLEET OWNERS & TRANSPORT CONTRACTORS',
-  address:
-    'Office 402, SHREE GANESH CHS LTD, PLOT NO 151 PHASE 11, NAVDE, TALOJA, PANVEL, NAVI MUMBAI 410208',
   proprietor: 'Ganesh Kute',
-  mobile: '9324540988',
+  address:
+    'Office 402, SHREE GANESH CHS LTD, PLOT NO 151, PHASE II, NAVDE, TALOJA, PANVEL, NAVI MUMBAI 410208',
+  mobile: '+91 9324540988',
   email: 'ganesh@gkenterprise.in',
+  web: 'www.gkenterprise.in',
   pan: 'AWCPK8573C',
   gst: '27AWCPK8573C1ZG',
   bank: 'IDBI BANK',
-  branch: 'KAMOTHE NAVI MUMBAI',
+  branch: 'KAMOTHE, NAVI MUMBAI',
   accountNo: '1043102000008549',
   ifsc: 'IBKL0001043',
   hsnsac: '996511',
 };
 
-function formatIndianNumber(n: number): string {
-  const s = Math.round(n).toString();
-  if (s.length <= 3) return s;
-  const lastThree = s.slice(-3);
-  const rest = s.slice(0, -3);
-  const withComma = rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
-  return withComma + ',' + lastThree;
+const C = {
+  navy: '#0D2847',
+  royal: '#1565C0',
+  ice: '#42A5F5',
+  white: '#FFFFFF',
+  bg: '#F4F6F8',
+  rowAlt: '#F8F9FA',
+  border: '#E0E8F0',
+  bankBg: '#E3F2FD',
+  gray: '#6B7B8D',
+  black: '#1A1A1A',
+};
+
+function fmt(n: number): string {
+  return Math.round(n).toLocaleString('en-IN');
 }
 
-function formatDate(d: Date): string {
+function fmtDate(d: Date | string): string {
   const x = new Date(d);
-  const day = String(x.getDate()).padStart(2, '0');
-  const month = String(x.getMonth() + 1).padStart(2, '0');
-  const year = x.getFullYear();
-  return `${day}/${month}/${year}`;
+  if (isNaN(x.getTime())) return '—';
+  return `${String(x.getDate()).padStart(2, '0')}/${String(x.getMonth() + 1).padStart(2, '0')}/${x.getFullYear()}`;
 }
+
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  return [
+    parseInt(h.substring(0, 2), 16),
+    parseInt(h.substring(2, 4), 16),
+    parseInt(h.substring(4, 6), 16),
+  ];
+}
+
+const ML = 40; // left margin
+const MR = 40; // right margin
+const PW = 595.28; // A4 width
+const CW = PW - ML - MR; // content width
 
 @Injectable()
 export class InvoicePdfService {
-  /**
-   * Generate the invoice PDF entirely in memory and return a Buffer.
-   * No filesystem writes — safe for read-only hosts like Railway.
-   */
   async generate(invoice: any): Promise<Buffer> {
     const client = invoice.client;
-    const lineItems = invoice.lineItems || [];
-    const deductions = invoice.deductions || [];
+    const lineItems: any[] = invoice.lineItems || [];
+    const deductions: any[] = invoice.deductions || [];
 
-    const doc = new PDFDocument({ size: 'A4', margin: 40 });
+    const doc = new PDFDocument({ size: 'A4', margins: { top: 30, bottom: 30, left: ML, right: MR } });
     const chunks: Buffer[] = [];
-
-    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-
+    doc.on('data', (c: Buffer) => chunks.push(c));
     const done = new Promise<Buffer>((resolve, reject) => {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
     });
 
-    const pageWidth = 595.28;
-    const col = (x: number) => 40 + x;
+    let y = 30;
 
-    // --- Header ---
-    doc
-      .fontSize(18)
-      .font('Helvetica-Bold')
-      .text(COMPANY.name, 40, 40, { align: 'center', width: pageWidth - 80 });
-    doc
-      .fontSize(10)
-      .font('Helvetica')
-      .text(COMPANY.type, 40, 60, { align: 'center', width: pageWidth - 80 });
-    doc.fontSize(9).text(COMPANY.address, 40, 76, {
-      align: 'center',
-      width: pageWidth - 80,
-    });
-    doc.text(
-      `Mob: ${COMPANY.mobile}  |  ${COMPANY.email}`,
-      40,
-      92,
-      { align: 'center', width: pageWidth - 80 },
-    );
-    doc.text(
-      `GSTIN: ${COMPANY.gst}  |  PAN: ${COMPANY.pan}`,
-      40,
-      104,
-      { align: 'center', width: pageWidth - 80 },
-    );
+    // ═══════════════════════════════════════════
+    // 1. HEADER BARS
+    // ═══════════════════════════════════════════
+    doc.save();
+    doc.rect(0, 0, PW, 8).fill(C.navy);
+    doc.rect(0, 8, PW, 3).fill(C.ice);
+    doc.restore();
 
-    doc.moveDown();
-    doc.moveTo(40, 125).lineTo(pageWidth - 40, 125).stroke();
-    doc.moveDown(0.5);
+    y = 20;
 
-    // --- Bill details ---
-    doc
-      .fontSize(10)
-      .font('Helvetica-Bold')
-      .text(`Bill No: ${invoice.invoiceNumber}`, 40, 132);
-    doc
-      .font('Helvetica')
-      .text(`Date: ${formatDate(invoice.issueDate)}`, pageWidth - 140, 132);
-    doc.font('Helvetica').text(`M/S: ${client?.name || ''}`, 40, 148);
-    doc.text(`GSTIN: ${client?.gstNumber || 'N/A'}`, 40, 160);
+    // ═══════════════════════════════════════════
+    // 2. GK MONOGRAM + COMPANY INFO + TAX INVOICE
+    // ═══════════════════════════════════════════
+    const monoX = ML;
+    const monoY = y;
+    const monoSize = 40;
+    doc.save();
+    doc.roundedRect(monoX, monoY, monoSize, monoSize, 6).fill(C.navy);
+    doc.font('Helvetica-Bold').fontSize(22);
+    doc.fillColor(C.white).text('G', monoX + 4, monoY + 6, { width: 20, continued: false });
+    doc.fillColor(C.ice).text('K', monoX + 20, monoY + 6, { width: 20 });
+    doc.restore();
 
-    doc.moveDown(0.5);
-    doc.moveTo(40, 178).lineTo(pageWidth - 40, 178).stroke();
+    const infoX = monoX + monoSize + 10;
+    doc.fillColor(C.navy).font('Helvetica-Bold').fontSize(16)
+      .text(COMPANY.name, infoX, monoY + 2);
+    doc.fillColor(C.gray).font('Helvetica').fontSize(8)
+      .text(COMPANY.type, infoX, monoY + 20);
+    doc.fontSize(7).fillColor(C.gray)
+      .text(COMPANY.address, infoX, monoY + 30, { width: 280 });
 
-    // --- Table header ---
-    const tableTop = 188;
-    doc.fontSize(9).font('Helvetica-Bold');
-    doc.text('Sr', col(0), tableTop, { width: 18 });
-    doc.text('Veh No', col(20), tableTop, { width: 68 });
-    doc.text('Particulars', col(90), tableTop, { width: 120 });
-    doc.text('Trip', col(212), tableTop, { width: 28 });
-    doc.text('Days', col(242), tableTop, { width: 38 });
-    doc.text('Rate', col(282), tableTop, { width: 48 });
-    doc.text('Amount', col(332), tableTop, { width: 80 });
+    const contactY = monoY + 46;
+    doc.fontSize(7).fillColor(C.gray)
+      .text(`Mob: ${COMPANY.mobile}  |  Email: ${COMPANY.email}  |  Web: ${COMPANY.web}`, infoX, contactY, { width: 300 });
 
-    doc
-      .moveTo(40, tableTop + 14)
-      .lineTo(pageWidth - 40, tableTop + 14)
-      .stroke();
+    // TAX INVOICE title — right side
+    const rightX = PW - MR;
+    doc.fillColor(C.navy).font('Helvetica-Bold').fontSize(14)
+      .text('TAX INVOICE', rightX - 140, monoY + 2, { width: 140, align: 'right' });
+    doc.fillColor(C.gray).font('Helvetica').fontSize(8)
+      .text(`GSTIN: ${COMPANY.gst}`, rightX - 140, monoY + 20, { width: 140, align: 'right' });
+    doc.text(`PAN: ${COMPANY.pan}`, rightX - 140, monoY + 30, { width: 140, align: 'right' });
 
-    let y = tableTop + 20;
-    doc.font('Helvetica');
+    y = contactY + 16;
+
+    // separator
+    doc.save();
+    doc.lineWidth(1.5).strokeColor(C.navy)
+      .moveTo(ML, y).lineTo(PW - MR, y).stroke();
+    doc.restore();
+    y += 8;
+
+    // ═══════════════════════════════════════════
+    // 3. BILL INFO (gray background panel)
+    // ═══════════════════════════════════════════
+    const billH = 52;
+    doc.save();
+    doc.rect(ML, y, CW, billH).fill(C.bg);
+    doc.restore();
+
+    const billPad = 10;
+    const bY = y + billPad;
+
+    doc.fillColor(C.navy).font('Helvetica-Bold').fontSize(9)
+      .text('Invoice No:', ML + billPad, bY, { continued: true })
+      .font('Helvetica').text(`  ${invoice.invoiceNumber || '—'}`);
+    doc.font('Helvetica-Bold')
+      .text('Date:', ML + billPad, bY + 14, { continued: true })
+      .font('Helvetica').text(`  ${fmtDate(invoice.issueDate)}`);
+    doc.font('Helvetica-Bold')
+      .text('Due Date:', ML + billPad, bY + 28, { continued: true })
+      .font('Helvetica').text(`  ${fmtDate(invoice.dueDate)}`);
+
+    const clientX = ML + CW / 2 + 10;
+    doc.fillColor(C.navy).font('Helvetica-Bold').fontSize(9)
+      .text('M/S:', clientX, bY, { continued: true })
+      .font('Helvetica').text(`  ${client?.name || '—'}`);
+    doc.font('Helvetica-Bold')
+      .text('GSTIN:', clientX, bY + 14, { continued: true })
+      .font('Helvetica').text(`  ${client?.gstNumber || 'N/A'}`);
+    if (client?.address) {
+      doc.font('Helvetica').fontSize(7).fillColor(C.gray)
+        .text(client.address, clientX, bY + 28, { width: CW / 2 - 20 });
+    }
+
+    y += billH + 8;
+
+    // ═══════════════════════════════════════════
+    // 4. LINE ITEMS TABLE
+    // ═══════════════════════════════════════════
+    const cols = [
+      { label: 'Sr',          w: 28,  align: 'center' as const },
+      { label: 'Vehicle No',  w: 88,  align: 'left' as const },
+      { label: 'Particulars', w: 140, align: 'left' as const },
+      { label: 'Trips',       w: 40,  align: 'right' as const },
+      { label: 'Days',        w: 40,  align: 'right' as const },
+      { label: 'Rate (₹)',   w: 62,  align: 'right' as const },
+      { label: 'Amount (₹)', w: CW - 28 - 88 - 140 - 40 - 40 - 62, align: 'right' as const },
+    ];
+
+    const headerH = 20;
+    // Table header background
+    doc.save();
+    doc.rect(ML, y, CW, headerH).fill(C.navy);
+    doc.restore();
+
+    let cx = ML;
+    doc.font('Helvetica-Bold').fontSize(8).fillColor(C.white);
+    for (const c of cols) {
+      const pad = c.align === 'left' ? 6 : c.align === 'right' ? 0 : 0;
+      doc.text(c.label, cx + pad, y + 6, { width: c.w - pad, align: c.align });
+      cx += c.w;
+    }
+
+    y += headerH;
+
+    // Table rows
+    const rowH = 18;
+    doc.font('Helvetica').fontSize(8);
 
     lineItems.forEach((item: any, idx: number) => {
-      const sr = idx + 1;
-      const veh = (item.vehicleRegNumber || '').toString();
-      const desc = (item.description || '').toString().slice(0, 28);
-      const trip =
-        item.billingType === 'ADHOC' ? String(item.tripCount ?? 0) : '-';
-      const days =
-        item.daysCount != null ? String(Number(item.daysCount)) : '-';
-      const rate = formatIndianNumber(Number(item.rate ?? 0));
-      const amt = formatIndianNumber(Number(item.amount ?? 0));
+      const isAlt = idx % 2 === 1;
+      if (isAlt) {
+        doc.save();
+        doc.rect(ML, y, CW, rowH).fill(C.rowAlt);
+        doc.restore();
+      }
 
-      doc.fontSize(9).text(String(sr), col(0), y, { width: 18 });
-      doc.text(veh, col(20), y, { width: 68 });
-      doc.text(desc, col(90), y, { width: 120 });
-      doc.text(trip, col(212), y, { width: 28 });
-      doc.text(days, col(242), y, { width: 38 });
-      doc.text(rate, col(282), y, { width: 48 });
-      doc.text(amt, col(332), y, { width: 80 });
-      y += 18;
+      const vals = [
+        String(idx + 1),
+        (item.vehicleRegNumber || '').toString(),
+        (item.description || '').toString().slice(0, 32),
+        item.billingType === 'ADHOC' ? String(item.tripCount ?? 0) : '—',
+        item.daysCount != null ? String(Number(item.daysCount)) : '—',
+        fmt(Number(item.rate ?? 0)),
+        fmt(Number(item.amount ?? 0)),
+      ];
+
+      cx = ML;
+      doc.fillColor(C.black);
+      vals.forEach((v, i) => {
+        const c = cols[i];
+        const pad = c.align === 'left' ? 6 : 0;
+        doc.text(v, cx + pad, y + 5, { width: c.w - pad - (c.align === 'right' ? 6 : 0), align: c.align });
+        cx += c.w;
+      });
+
+      // row bottom border
+      doc.save();
+      doc.lineWidth(0.5).strokeColor(C.border)
+        .moveTo(ML, y + rowH).lineTo(ML + CW, y + rowH).stroke();
+      doc.restore();
+
+      y += rowH;
     });
 
-    doc.moveTo(40, y).lineTo(pageWidth - 40, y).stroke();
-    y += 12;
+    // bottom border of table
+    doc.save();
+    doc.lineWidth(1).strokeColor(C.navy)
+      .moveTo(ML, y).lineTo(ML + CW, y).stroke();
+    doc.restore();
+    y += 8;
 
-    // --- Totals ---
+    // ═══════════════════════════════════════════
+    // 5. TOTALS
+    // ═══════════════════════════════════════════
+    const totLabelX = PW - MR - 220;
+    const totValX = PW - MR - 90;
+    const totValW = 90;
+
     const subtotal = Number(invoice.subtotal ?? 0);
     const totalAmount = Number(invoice.totalAmount ?? 0);
 
-    doc.text('Subtotal:', pageWidth - 220, y);
-    doc.text(formatIndianNumber(subtotal), pageWidth - 120, y, { width: 80 });
-    y += 16;
+    doc.font('Helvetica').fontSize(9).fillColor(C.black);
+    doc.text('Subtotal:', totLabelX, y, { width: 120, align: 'right' });
+    doc.text(`₹ ${fmt(subtotal)}`, totValX, y, { width: totValW, align: 'right' });
+    y += 14;
 
     deductions.forEach((d: any) => {
-      doc.text(`${(d.description || '').toString()}:`, pageWidth - 220, y);
-      doc.text(
-        `-${formatIndianNumber(Number(d.amount ?? 0))}`,
-        pageWidth - 120,
-        y,
-        { width: 80 },
-      );
-      y += 14;
+      const label = `Less: ${(d.description || '').toString()}`;
+      doc.fillColor(C.gray).text(label, totLabelX, y, { width: 120, align: 'right' });
+      doc.fillColor('#DC2626').text(`- ₹ ${fmt(Number(d.amount ?? 0))}`, totValX, y, { width: totValW, align: 'right' });
+      y += 13;
     });
 
-    doc.font('Helvetica-Bold');
-    doc.text('TOTAL:', pageWidth - 220, y);
-    doc.text(formatIndianNumber(totalAmount), pageWidth - 120, y, {
-      width: 80,
-    });
-    y += 20;
+    // total line
+    doc.save();
+    doc.lineWidth(0.5).strokeColor(C.border)
+      .moveTo(totLabelX, y).lineTo(PW - MR, y).stroke();
+    doc.restore();
+    y += 6;
 
-    doc.moveTo(40, y).lineTo(pageWidth - 40, y).stroke();
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(C.navy);
+    doc.text('TOTAL:', totLabelX, y, { width: 120, align: 'right' });
+    doc.text(`₹ ${fmt(totalAmount)}`, totValX, y, { width: totValW, align: 'right' });
+    y += 18;
+
+    // amount in words
+    const words = (invoice.amountInWords || '').toString();
+    if (words) {
+      doc.font('Helvetica-Oblique').fontSize(8).fillColor(C.gray)
+        .text(`Amount in words: ${words}`, ML, y, { width: CW });
+      y += 16;
+    }
+
+    // separator
+    doc.save();
+    doc.lineWidth(0.5).strokeColor(C.border)
+      .moveTo(ML, y).lineTo(PW - MR, y).stroke();
+    doc.restore();
     y += 10;
 
-    // --- Amount in words ---
-    doc.font('Helvetica').fontSize(9);
-    const words = (invoice.amountInWords || '').toString();
-    doc.text('Amount in words: ' + words, 40, y, { width: pageWidth - 80 });
-    y += 24;
+    // ═══════════════════════════════════════════
+    // 6. BANK DETAILS (left) + TERMS (right)
+    // ═══════════════════════════════════════════
+    const panelW = (CW - 16) / 2;
+    const panelH = 68;
 
-    doc.moveTo(40, y).lineTo(pageWidth - 40, y).stroke();
-    y += 14;
+    // Bank box
+    doc.save();
+    doc.roundedRect(ML, y, panelW, panelH, 4).fill(C.bankBg);
+    doc.restore();
 
-    // --- Bank details / footer ---
-    doc.fontSize(9).text(`Bank: ${COMPANY.bank}, ${COMPANY.branch}`, 40, y);
-    y += 12;
-    doc.text(`A/c: ${COMPANY.accountNo}  |  IFSC: ${COMPANY.ifsc}`, 40, y);
-    y += 12;
-    doc.text(`HSN/SAC: ${COMPANY.hsnsac}`, 40, y);
-    y += 12;
-    doc.text('Note: Payment under reverse charge', 40, y);
-    y += 12;
-    doc.text(
-      `Terms: Payment within ${invoice.client?.paymentTermsDays ?? 15} days`,
-      40,
-      y,
-    );
-    y += 20;
+    const bkX = ML + 8;
+    let bkY = y + 8;
+    doc.font('Helvetica-Bold').fontSize(8).fillColor(C.navy)
+      .text('BANK DETAILS', bkX, bkY);
+    bkY += 12;
+    doc.font('Helvetica').fontSize(7.5).fillColor(C.black);
+    doc.text(`Bank: ${COMPANY.bank}`, bkX, bkY); bkY += 11;
+    doc.text(`Branch: ${COMPANY.branch}`, bkX, bkY); bkY += 11;
+    doc.text(`A/c No: ${COMPANY.accountNo}`, bkX, bkY); bkY += 11;
+    doc.text(`IFSC: ${COMPANY.ifsc}`, bkX, bkY);
 
-    doc.moveTo(40, y).lineTo(pageWidth - 40, y).stroke();
-    y += 14;
+    // Terms box
+    const tmX = ML + panelW + 16;
+    let tmY = y + 8;
+    doc.font('Helvetica-Bold').fontSize(8).fillColor(C.navy)
+      .text('TERMS & CONDITIONS', tmX, tmY);
+    tmY += 12;
+    doc.font('Helvetica').fontSize(7.5).fillColor(C.black);
+    const payTerms = invoice.client?.paymentTermsDays ?? 15;
+    doc.text(`HSN/SAC Code: ${COMPANY.hsnsac}`, tmX, tmY); tmY += 11;
+    doc.text('Payment under Reverse Charge: YES', tmX, tmY); tmY += 11;
+    doc.text(`Payment Terms: ${payTerms} days from invoice date`, tmX, tmY); tmY += 11;
+    doc.text('Interest @ 18% p.a. on overdue payments', tmX, tmY);
 
-    doc.text('E&OE', 40, y);
-    doc.text('For G K ENTERPRISE', pageWidth - 160, y);
-    y += 12;
-    doc.text('Proprietor', pageWidth - 160, y);
+    y += panelH + 16;
+
+    // ═══════════════════════════════════════════
+    // 7. SIGNATURE AREA
+    // ═══════════════════════════════════════════
+    doc.font('Helvetica').fontSize(8).fillColor(C.gray)
+      .text('E. & O.E.', ML, y);
+
+    doc.font('Helvetica-Bold').fontSize(9).fillColor(C.navy)
+      .text('For G K ENTERPRISE', PW - MR - 160, y, { width: 160, align: 'right' });
+    y += 36;
+
+    // signature line
+    doc.save();
+    doc.lineWidth(0.5).strokeColor(C.gray)
+      .moveTo(PW - MR - 130, y).lineTo(PW - MR, y).stroke();
+    doc.restore();
+    y += 4;
+
+    doc.font('Helvetica').fontSize(7.5).fillColor(C.gray)
+      .text('Proprietor', PW - MR - 130, y, { width: 130, align: 'center' });
+
+    // ═══════════════════════════════════════════
+    // 8. FOOTER BARS (mirror of header)
+    // ═══════════════════════════════════════════
+    const pageH = 841.89; // A4 height
+    doc.save();
+    doc.rect(0, pageH - 11, PW, 3).fill(C.ice);
+    doc.rect(0, pageH - 8, PW, 8).fill(C.navy);
+    doc.restore();
 
     doc.end();
-
     return done;
   }
 }
