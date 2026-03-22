@@ -236,9 +236,26 @@ export class InvoiceService {
     });
   }
 
-  async autoGenerate(dto: { clientId: string; billingMonth: string }) {
-    const [y, m] = dto.billingMonth.split('-').map(Number);
-    if (!y || !m) throw new BadRequestException('billingMonth must be YYYY-MM');
+  async autoGenerate(dto: {
+    clientId: string;
+    billingMonth?: string;
+    month?: number | string;
+    year?: number | string;
+  }) {
+    let y: number, m: number;
+    if (dto.billingMonth) {
+      [y, m] = dto.billingMonth.split('-').map(Number);
+    } else if (dto.month && dto.year) {
+      m = Number(dto.month);
+      y = Number(dto.year);
+    } else {
+      throw new BadRequestException(
+        'billingMonth (YYYY-MM) or month + year is required',
+      );
+    }
+    if (!y || !m || m < 1 || m > 12) {
+      throw new BadRequestException('Invalid month/year values');
+    }
     const periodStart = new Date(y, m - 1, 1);
     const periodEnd = new Date(y, m, 0, 23, 59, 59);
 

@@ -83,8 +83,21 @@ export class InvoiceController {
   @Post('auto-generate')
   @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Auto-generate draft invoice from trip data for a client and month' })
-  @ApiBody({ schema: { type: 'object', properties: { clientId: { type: 'string' }, billingMonth: { type: 'string', example: '2026-03' } } } })
-  autoGenerate(@Body() dto: { clientId: string; billingMonth: string }) {
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['clientId'],
+      properties: {
+        clientId: { type: 'string' },
+        billingMonth: { type: 'string', example: '2026-03', description: 'YYYY-MM format (alternative to month+year)' },
+        month: { type: 'number', example: 3, description: 'Month number 1-12 (alternative to billingMonth)' },
+        year: { type: 'number', example: 2026, description: 'Four-digit year (alternative to billingMonth)' },
+      },
+    },
+  })
+  autoGenerate(
+    @Body() dto: { clientId: string; billingMonth?: string; month?: number; year?: number },
+  ) {
     return this.invoiceService.autoGenerate(dto);
   }
 }
