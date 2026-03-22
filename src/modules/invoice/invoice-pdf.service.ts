@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as PDFDocument from 'pdfkit';
+import * as path from 'path';
+import * as fs from 'fs';
 
 const COMPANY = {
   name: 'G K ENTERPRISE',
@@ -42,19 +44,24 @@ function fmtDate(d: Date | string): string {
   return `${String(x.getDate()).padStart(2, '0')}/${String(x.getMonth() + 1).padStart(2, '0')}/${x.getFullYear()}`;
 }
 
-function hexToRgb(hex: string): [number, number, number] {
-  const h = hex.replace('#', '');
-  return [
-    parseInt(h.substring(0, 2), 16),
-    parseInt(h.substring(2, 4), 16),
-    parseInt(h.substring(4, 6), 16),
+function resolveSignaturePath(): string | null {
+  const candidates = [
+    path.join(process.cwd(), 'src', 'assets', 'signature.jpeg'),
+    path.join(__dirname, '..', '..', 'assets', 'signature.jpeg'),
+    path.join(process.cwd(), 'assets', 'signature.jpeg'),
   ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch { /* skip */ }
+  }
+  return null;
 }
 
-const ML = 40; // left margin
-const MR = 40; // right margin
-const PW = 595.28; // A4 width
-const CW = PW - ML - MR; // content width
+const ML = 40;
+const MR = 40;
+const PW = 595.28;
+const CW = PW - ML - MR;
 
 @Injectable()
 export class InvoicePdfService {
@@ -63,7 +70,10 @@ export class InvoicePdfService {
     const lineItems: any[] = invoice.lineItems || [];
     const deductions: any[] = invoice.deductions || [];
 
-    const doc = new PDFDocument({ size: 'A4', margins: { top: 30, bottom: 30, left: ML, right: MR } });
+    const doc = new PDFDocument({
+      size: 'A4',
+      margins: { top: 30, bottom: 30, left: ML, right: MR },
+    });
     const chunks: Buffer[] = [];
     doc.on('data', (c: Buffer) => chunks.push(c));
     const done = new Promise<Buffer>((resolve, reject) => {
@@ -88,37 +98,39 @@ export class InvoicePdfService {
     // ═══════════════════════════════════════════
     const monoX = ML;
     const monoY = y;
-    const monoSize = 40;
+    const monoSize = 35;
+
     doc.save();
-    doc.roundedRect(monoX, monoY, monoSize, monoSize, 6).fill(C.navy);
-    doc.font('Helvetica-Bold').fontSize(22);
-    doc.fillColor(C.white).text('G', monoX + 4, monoY + 6, { width: 20, continued: false });
-    doc.fillColor(C.ice).text('K', monoX + 20, monoY + 6, { width: 20 });
+    doc.roundedRect(monoX, monoY, monoSize, monoSize, 5).fill(C.navy);
+    doc.font('Helvetica-Bold').fontSize(18);
+    doc.fillColor(C.white).text('G', monoX + 3, monoY + 6, { width: 16, continued: false });
+    doc.fillColor(C.ice).text('K', monoX + 17, monoY + 6, { width: 16 });
     doc.restore();
 
     const infoX = monoX + monoSize + 10;
     doc.fillColor(C.navy).font('Helvetica-Bold').fontSize(16)
-      .text(COMPANY.name, infoX, monoY + 2);
+      .text(COMPANY.name, infoX, monoY + 1);
     doc.fillColor(C.gray).font('Helvetica').fontSize(8)
-      .text(COMPANY.type, infoX, monoY + 20);
+      .text(COMPANY.type, infoX, monoY + 19);
     doc.fontSize(7).fillColor(C.gray)
       .text(COMPANY.address, infoX, monoY + 30, { width: 280 });
 
     const contactY = monoY + 46;
     doc.fontSize(7).fillColor(C.gray)
-      .text(`Mob: ${COMPANY.mobile}  |  Email: ${COMPANY.email}  |  Web: ${COMPANY.web}`, infoX, contactY, { width: 300 });
+      .text(
+        `Mob: ${COMPANY.mobile}  |  Email: ${COMPANY.email}  |  Web: ${COMPANY.web}`,
+        infoX, contactY, { width: 300 },
+      );
 
-    // TAX INVOICE title — right side
     const rightX = PW - MR;
     doc.fillColor(C.navy).font('Helvetica-Bold').fontSize(14)
-      .text('TAX INVOICE', rightX - 140, monoY + 2, { width: 140, align: 'right' });
+      .text('TAX INVOICE', rightX - 140, monoY + 1, { width: 140, align: 'right' });
     doc.fillColor(C.gray).font('Helvetica').fontSize(8)
-      .text(`GSTIN: ${COMPANY.gst}`, rightX - 140, monoY + 20, { width: 140, align: 'right' });
+      .text(`GSTIN: ${COMPANY.gst}`, rightX - 140, monoY + 19, { width: 140, align: 'right' });
     doc.text(`PAN: ${COMPANY.pan}`, rightX - 140, monoY + 30, { width: 140, align: 'right' });
 
     y = contactY + 16;
 
-    // separator
     doc.save();
     doc.lineWidth(1.5).strokeColor(C.navy)
       .moveTo(ML, y).lineTo(PW - MR, y).stroke();
@@ -126,7 +138,7 @@ export class InvoicePdfService {
     y += 8;
 
     // ═══════════════════════════════════════════
-    // 3. BILL INFO (gray background panel)
+    // 3. BILL INFO
     // ═══════════════════════════════════════════
     const billH = 52;
     doc.save();
@@ -164,17 +176,16 @@ export class InvoicePdfService {
     // 4. LINE ITEMS TABLE
     // ═══════════════════════════════════════════
     const cols = [
-      { label: 'Sr',          w: 28,  align: 'center' as const },
-      { label: 'Vehicle No',  w: 88,  align: 'left' as const },
-      { label: 'Particulars', w: 140, align: 'left' as const },
-      { label: 'Trips',       w: 40,  align: 'right' as const },
-      { label: 'Days',        w: 40,  align: 'right' as const },
+      { label: 'Sr No',       w: 32,  align: 'center' as const },
+      { label: 'Vehicle No',  w: 84,  align: 'left' as const },
+      { label: 'Particulars', w: 138, align: 'left' as const },
+      { label: 'Trips',       w: 38,  align: 'right' as const },
+      { label: 'Days',        w: 38,  align: 'right' as const },
       { label: 'Rate (₹)',   w: 62,  align: 'right' as const },
-      { label: 'Amount (₹)', w: CW - 28 - 88 - 140 - 40 - 40 - 62, align: 'right' as const },
+      { label: 'Amount (₹)', w: CW - 32 - 84 - 138 - 38 - 38 - 62, align: 'right' as const },
     ];
 
     const headerH = 20;
-    // Table header background
     doc.save();
     doc.rect(ML, y, CW, headerH).fill(C.navy);
     doc.restore();
@@ -182,20 +193,18 @@ export class InvoicePdfService {
     let cx = ML;
     doc.font('Helvetica-Bold').fontSize(8).fillColor(C.white);
     for (const c of cols) {
-      const pad = c.align === 'left' ? 6 : c.align === 'right' ? 0 : 0;
+      const pad = c.align === 'left' ? 6 : 0;
       doc.text(c.label, cx + pad, y + 6, { width: c.w - pad, align: c.align });
       cx += c.w;
     }
 
     y += headerH;
 
-    // Table rows
     const rowH = 18;
     doc.font('Helvetica').fontSize(8);
 
     lineItems.forEach((item: any, idx: number) => {
-      const isAlt = idx % 2 === 1;
-      if (isAlt) {
+      if (idx % 2 === 1) {
         doc.save();
         doc.rect(ML, y, CW, rowH).fill(C.rowAlt);
         doc.restore();
@@ -216,11 +225,11 @@ export class InvoicePdfService {
       vals.forEach((v, i) => {
         const c = cols[i];
         const pad = c.align === 'left' ? 6 : 0;
-        doc.text(v, cx + pad, y + 5, { width: c.w - pad - (c.align === 'right' ? 6 : 0), align: c.align });
+        const rpad = c.align === 'right' ? 6 : 0;
+        doc.text(v, cx + pad, y + 5, { width: c.w - pad - rpad, align: c.align });
         cx += c.w;
       });
 
-      // row bottom border
       doc.save();
       doc.lineWidth(0.5).strokeColor(C.border)
         .moveTo(ML, y + rowH).lineTo(ML + CW, y + rowH).stroke();
@@ -229,7 +238,6 @@ export class InvoicePdfService {
       y += rowH;
     });
 
-    // bottom border of table
     doc.save();
     doc.lineWidth(1).strokeColor(C.navy)
       .moveTo(ML, y).lineTo(ML + CW, y).stroke();
@@ -254,11 +262,13 @@ export class InvoicePdfService {
     deductions.forEach((d: any) => {
       const label = `Less: ${(d.description || '').toString()}`;
       doc.fillColor(C.gray).text(label, totLabelX, y, { width: 120, align: 'right' });
-      doc.fillColor('#DC2626').text(`- ₹ ${fmt(Number(d.amount ?? 0))}`, totValX, y, { width: totValW, align: 'right' });
+      doc.fillColor('#DC2626').text(
+        `- ₹ ${fmt(Number(d.amount ?? 0))}`,
+        totValX, y, { width: totValW, align: 'right' },
+      );
       y += 13;
     });
 
-    // total line
     doc.save();
     doc.lineWidth(0.5).strokeColor(C.border)
       .moveTo(totLabelX, y).lineTo(PW - MR, y).stroke();
@@ -270,7 +280,6 @@ export class InvoicePdfService {
     doc.text(`₹ ${fmt(totalAmount)}`, totValX, y, { width: totValW, align: 'right' });
     y += 18;
 
-    // amount in words
     const words = (invoice.amountInWords || '').toString();
     if (words) {
       doc.font('Helvetica-Oblique').fontSize(8).fillColor(C.gray)
@@ -278,7 +287,6 @@ export class InvoicePdfService {
       y += 16;
     }
 
-    // separator
     doc.save();
     doc.lineWidth(0.5).strokeColor(C.border)
       .moveTo(ML, y).lineTo(PW - MR, y).stroke();
@@ -286,12 +294,11 @@ export class InvoicePdfService {
     y += 10;
 
     // ═══════════════════════════════════════════
-    // 6. BANK DETAILS (left) + TERMS (right)
+    // 6. BANK DETAILS + TERMS
     // ═══════════════════════════════════════════
     const panelW = (CW - 16) / 2;
     const panelH = 68;
 
-    // Bank box
     doc.save();
     doc.roundedRect(ML, y, panelW, panelH, 4).fill(C.bankBg);
     doc.restore();
@@ -307,7 +314,6 @@ export class InvoicePdfService {
     doc.text(`A/c No: ${COMPANY.accountNo}`, bkX, bkY); bkY += 11;
     doc.text(`IFSC: ${COMPANY.ifsc}`, bkX, bkY);
 
-    // Terms box
     const tmX = ML + panelW + 16;
     let tmY = y + 8;
     doc.font('Helvetica-Bold').fontSize(8).fillColor(C.navy)
@@ -328,24 +334,38 @@ export class InvoicePdfService {
     doc.font('Helvetica').fontSize(8).fillColor(C.gray)
       .text('E. & O.E.', ML, y);
 
+    const sigBlockX = PW - MR - 140;
     doc.font('Helvetica-Bold').fontSize(9).fillColor(C.navy)
-      .text('For G K ENTERPRISE', PW - MR - 160, y, { width: 160, align: 'right' });
-    y += 36;
+      .text('For G K ENTERPRISE', sigBlockX, y, { width: 140, align: 'center' });
+    y += 14;
 
-    // signature line
+    const sigImgPath = resolveSignaturePath();
+    if (sigImgPath) {
+      try {
+        doc.image(sigImgPath, sigBlockX + 40, y, { width: 60, height: 40 });
+      } catch {
+        doc.font('Helvetica-Oblique').fontSize(10).fillColor(C.gray)
+          .text('Sd/-', sigBlockX, y + 10, { width: 140, align: 'center' });
+      }
+    } else {
+      doc.font('Helvetica-Oblique').fontSize(10).fillColor(C.gray)
+        .text('Sd/-', sigBlockX, y + 10, { width: 140, align: 'center' });
+    }
+    y += 44;
+
     doc.save();
     doc.lineWidth(0.5).strokeColor(C.gray)
-      .moveTo(PW - MR - 130, y).lineTo(PW - MR, y).stroke();
+      .moveTo(sigBlockX, y).lineTo(PW - MR, y).stroke();
     doc.restore();
     y += 4;
 
     doc.font('Helvetica').fontSize(7.5).fillColor(C.gray)
-      .text('Proprietor', PW - MR - 130, y, { width: 130, align: 'center' });
+      .text('Proprietor', sigBlockX, y, { width: 140, align: 'center' });
 
     // ═══════════════════════════════════════════
-    // 8. FOOTER BARS (mirror of header)
+    // 8. FOOTER BARS
     // ═══════════════════════════════════════════
-    const pageH = 841.89; // A4 height
+    const pageH = 841.89;
     doc.save();
     doc.rect(0, pageH - 11, PW, 3).fill(C.ice);
     doc.rect(0, pageH - 8, PW, 8).fill(C.navy);

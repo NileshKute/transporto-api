@@ -6,6 +6,7 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
+COPY src/assets src/assets
 
 RUN npx prisma generate
 RUN npm run build
