@@ -50,12 +50,37 @@ export class DriversService {
   }
 
   async create(dto: any) {
-    return this.prisma.driver.create({ data: dto });
+    return this.prisma.driver.create({ data: this.parseDriverDto(dto) });
   }
 
   async update(id: string, dto: any) {
     await this.findOne(id);
-    return this.prisma.driver.update({ where: { id }, data: dto });
+    return this.prisma.driver.update({ where: { id }, data: this.parseDriverDto(dto) });
+  }
+
+  private parseDriverDto(dto: any) {
+    const data = { ...dto };
+
+    if (data.experience !== undefined) {
+      data.experience = parseInt(String(data.experience).replace(/[^0-9]/g, ''), 10) || 0;
+    }
+    if (data.salary !== undefined) {
+      data.salary = parseFloat(String(data.salary)) || 0;
+    }
+    if (data.rating !== undefined) {
+      data.rating = parseFloat(String(data.rating)) || 0;
+    }
+    if (data.licenseExpiry !== undefined) {
+      data.licenseExpiry = data.licenseExpiry ? new Date(data.licenseExpiry) : null;
+    }
+    if (data.dateOfBirth !== undefined) {
+      data.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : null;
+    }
+    if (data.joiningDate !== undefined) {
+      data.joiningDate = data.joiningDate ? new Date(data.joiningDate) : null;
+    }
+
+    return data;
   }
 
   async remove(id: string) {
