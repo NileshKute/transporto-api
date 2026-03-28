@@ -39,58 +39,58 @@ export default function MaintenancePage() {
   const f = (name: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((p: any) => ({ ...p, [name]: e.target.value }));
 
-  const priorityColor: Record<string, string> = { LOW: 'text-slate-500', MEDIUM: 'text-blue-600', HIGH: 'text-amber-600', CRITICAL: 'text-red-600' };
+  const priorityColor: Record<string, string> = { LOW: 'text-[#1A4A7A]', MEDIUM: 'text-[#1565C0]', HIGH: 'text-[#F59E0B]', CRITICAL: 'text-[#DC2626]' };
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div><h2 className="text-2xl font-bold text-slate-900">Maintenance</h2><p className="text-sm text-slate-500">Vehicle maintenance records</p></div>
-        <button onClick={() => { setForm({ status: 'SCHEDULED', priority: 'MEDIUM' }); setEditItem(null); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition-colors">
+        <div><h2 className="font-['Oswald'] text-xl font-bold text-[#0D2847] tracking-wide uppercase">Maintenance</h2><p className="font-['Rajdhani'] text-sm text-[#7A9AB8]">Vehicle maintenance records</p></div>
+        <button onClick={() => { setForm({ status: 'SCHEDULED', priority: 'MEDIUM' }); setEditItem(null); setModalOpen(true); }} className="flex items-center gap-2 bg-[#1565C0] hover:bg-[#0D2847] text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition-colors">
           <Plus className="w-4 h-4" /> Add Record
         </button>
       </div>
 
-      <div className="flex gap-1 bg-white rounded-xl border border-slate-200 p-1 w-fit shadow-sm mb-5">
+      <div className="flex gap-1 bg-white rounded-xl border border-[#E0E8F0] p-1 w-fit shadow-sm mb-5">
         {(['all', 'due'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${tab === t ? 'bg-blue-600 text-white' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}>
-            {t === 'all' ? <><Wrench className="w-3.5 h-3.5" /> All Records</> : <><AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Due Soon {dueData?.length > 0 && <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{dueData.length}</span>}</>}
+          <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${tab === t ? 'bg-blue-600 text-white' : 'text-[#1A4A7A] hover:text-[#0D2847] hover:bg-[#F4F6F8]'}`}>
+            {t === 'all' ? <><Wrench className="w-3.5 h-3.5" /> All Records</> : <><AlertCircle className="w-3.5 h-3.5 text-[#F59E0B]" /> Due Soon {dueData?.length > 0 && <span className="bg-[#DC2626] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{dueData.length}</span>}</>}
           </button>
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-[#E0E8F0] shadow-sm overflow-hidden">
         {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message={tab === 'due' ? 'No maintenance due soon' : 'No maintenance records'} /> : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Vehicle</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Type</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Description</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Cost</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Priority</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Date</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Next Due</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Garage</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</th>
+                <tr className="bg-[#F4F6F8] border-b border-[#E0E8F0]">
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Vehicle</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Type</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Description</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Cost</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Priority</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Next Due</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Garage</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[#E0E8F0]">
                 {data.data.map((m: any) => (
-                  <tr key={m.id} className="hover:bg-blue-50/50 transition-colors">
-                    <td className="px-4 py-3.5 text-sm font-mono text-blue-600">{m.vehicle?.regNumber}</td>
-                    <td className="px-4 py-3.5"><span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium">{m.type?.replace(/_/g,' ')}</span></td>
-                    <td className="px-4 py-3.5 text-slate-600 text-xs max-w-[160px] truncate">{m.description || '—'}</td>
-                    <td className="px-4 py-3.5 text-sm text-slate-700 font-mono font-semibold">{formatCurrency(m.cost)}</td>
+                  <tr key={m.id} className="hover:bg-[#F4F6F8] transition-colors">
+                    <td className="px-4 py-3.5 text-sm font-mono text-[#1565C0]">{m.vehicle?.regNumber}</td>
+                    <td className="px-4 py-3.5"><span className="text-xs bg-[#F4F6F8] text-[#1A4A7A] px-2 py-1 rounded font-medium">{m.type?.replace(/_/g,' ')}</span></td>
+                    <td className="px-4 py-3.5 text-[#1A4A7A] text-xs max-w-[160px] truncate">{m.description || '—'}</td>
+                    <td className="px-4 py-3.5 text-sm text-[#0D2847] font-mono font-semibold">{formatCurrency(m.cost)}</td>
                     <td className="px-4 py-3.5"><StatusBadge status={m.status} /></td>
                     <td className="px-4 py-3.5"><span className={`text-xs font-semibold ${priorityColor[m.priority]}`}>● {m.priority}</span></td>
-                    <td className="px-4 py-3.5 text-xs text-slate-500">{formatDate(m.date)}</td>
-                    <td className="px-4 py-3.5 text-xs text-amber-600">{m.nextDueDate ? formatDate(m.nextDueDate) : '—'}</td>
-                    <td className="px-4 py-3.5 text-xs text-slate-500">{m.garage || '—'}</td>
+                    <td className="px-4 py-3.5 text-xs text-[#1A4A7A]">{formatDate(m.date)}</td>
+                    <td className="px-4 py-3.5 text-xs text-[#F59E0B]">{m.nextDueDate ? formatDate(m.nextDueDate) : '—'}</td>
+                    <td className="px-4 py-3.5 text-xs text-[#1A4A7A]">{m.garage || '—'}</td>
                     <td className="px-4 py-3.5">
-                      <button onClick={() => { setForm({ ...m, date: m.date?.split('T')[0], nextDueDate: m.nextDueDate?.split('T')[0] }); setEditItem(m); setModalOpen(true); }}
-                        className="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 bg-blue-100 rounded-lg">Edit</button>
+                      <button onClick={() => { setForm({ ...m, date: String(m.date || '').split('T')[0], nextDueDate: String(m.nextDueDate || '').split('T')[0] }); setEditItem(m); setModalOpen(true); }}
+                        className="text-xs text-[#42A5F5] hover:text-[#1565C0] px-2 py-1 bg-[#42A5F5]/10 rounded-lg font-['Barlow_Condensed']">Edit</button>
                     </td>
                   </tr>
                 ))}

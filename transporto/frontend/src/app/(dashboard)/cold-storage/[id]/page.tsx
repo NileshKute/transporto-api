@@ -15,9 +15,9 @@ import toast from 'react-hot-toast';
 const CustomTooltip = ({ active, payload }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#111827] border border-[#1e293b] rounded-lg p-3 text-xs">
-      <p className="text-slate-400">{payload[0]?.payload?.time}</p>
-      <p className="text-blue-400 font-bold">{payload[0]?.value}°C</p>
+    <div className="bg-white border border-[#E0E8F0] rounded-lg p-3 text-xs">
+      <p className="text-[#7A9AB8]">{payload[0]?.payload?.time}</p>
+      <p className="text-[#42A5F5] font-bold">{payload[0]?.value}°C</p>
     </div>
   );
 };
@@ -69,19 +69,19 @@ export default function ColdStorageDetailPage() {
   })) || [];
 
   const latestTemp = unit.temperatureLogs?.[0]?.temperature;
-  const tempColor = unit.status === 'CRITICAL' ? 'text-red-400' : unit.status === 'WARNING' ? 'text-amber-400' : 'text-emerald-400';
+  const tempColor = unit.status === 'CRITICAL' ? 'text-[#DC2626]' : unit.status === 'WARNING' ? 'text-[#F59E0B]' : 'text-[#16A34A]';
 
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <button onClick={() => router.back()} className="p-2 text-slate-400 hover:text-slate-100 hover:bg-[#1a2035] rounded-lg"><ArrowLeft className="w-4 h-4" /></button>
+        <button onClick={() => router.back()} className="p-2 text-[#7A9AB8] hover:text-[#0D2847] hover:bg-[#F4F6F8] rounded-lg"><ArrowLeft className="w-4 h-4" /></button>
         <div className="flex-1">
-          <h2 className="text-xl font-bold text-slate-100">{unit.name}</h2>
-          <p className="text-sm text-slate-500">{unit.type?.replace(/_/g,' ')} • Sensor: {unit.sensorId}</p>
+          <h2 className="text-xl font-bold text-[#0D2847]">{unit.name}</h2>
+          <p className="text-sm text-[#7A9AB8]">{unit.type?.replace(/_/g,' ')} • Sensor: {unit.sensorId}</p>
         </div>
         <div className="flex items-center gap-3">
           <StatusBadge status={unit.status} size="md" />
-          <button onClick={() => setLogModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors">
+          <button onClick={() => setLogModal(true)} className="flex items-center gap-2 px-4 py-2 bg-[#1565C0] hover:bg-[#0D2847] text-white text-sm font-medium rounded-lg transition-colors">
             <Plus className="w-4 h-4" /> Log Temp
           </button>
         </div>
@@ -89,29 +89,29 @@ export default function ColdStorageDetailPage() {
 
       {/* Top Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-[#111827] border border-[#1e293b] rounded-xl p-5">
-          <p className="text-xs text-slate-500 mb-2">Current Temp</p>
+        <div className="bg-white border border-[#E0E8F0] rounded-xl p-5">
+          <p className="text-xs text-[#7A9AB8] mb-2">Current Temp</p>
           <p className={`text-3xl font-bold font-mono ${tempColor}`}>{latestTemp != null ? `${latestTemp}°C` : '—'}</p>
-          <p className="text-xs text-slate-500 mt-1">Target: {unit.targetTemp}°C</p>
+          <p className="text-xs text-[#7A9AB8] mt-1">Target: {unit.targetTemp}°C</p>
         </div>
-        <div className="bg-[#111827] border border-[#1e293b] rounded-xl p-5">
-          <p className="text-xs text-slate-500 mb-2">Humidity</p>
-          <p className="text-3xl font-bold text-slate-100">{unit.temperatureLogs?.[0]?.humidity?.toFixed(0) ?? '—'}%</p>
+        <div className="bg-white border border-[#E0E8F0] rounded-xl p-5">
+          <p className="text-xs text-[#7A9AB8] mb-2">Humidity</p>
+          <p className="text-3xl font-bold text-[#0D2847]">{unit.temperatureLogs?.[0]?.humidity?.toFixed(0) ?? '—'}%</p>
         </div>
-        <div className="bg-[#111827] border border-[#1e293b] rounded-xl p-5">
-          <p className="text-xs text-slate-500 mb-2">Capacity</p>
-          <p className="text-3xl font-bold text-slate-100">{unit.capacityTotal}</p>
-          <p className="text-xs text-slate-500">{unit.capacityUnit}</p>
+        <div className="bg-white border border-[#E0E8F0] rounded-xl p-5">
+          <p className="text-xs text-[#7A9AB8] mb-2">Capacity</p>
+          <p className="text-3xl font-bold text-[#0D2847]">{String(unit.capacityTotal ?? 0)}</p>
+          <p className="text-xs text-[#7A9AB8]">{String(unit.capacityUnit ?? '—')}</p>
         </div>
-        <div className="bg-[#111827] border border-[#1e293b] rounded-xl p-5">
-          <p className="text-xs text-slate-500 mb-2">Active Clients</p>
-          <p className="text-3xl font-bold text-slate-100">{unit.storageClients?.length || 0}</p>
+        <div className="bg-white border border-[#E0E8F0] rounded-xl p-5">
+          <p className="text-xs text-[#7A9AB8] mb-2">Active Clients</p>
+          <p className="text-3xl font-bold text-[#0D2847]">{unit.storageClients?.length || 0}</p>
         </div>
       </div>
 
       {/* Temperature Chart */}
-      <div className="bg-[#111827] border border-[#1e293b] rounded-xl p-5">
-        <h3 className="font-semibold text-slate-100 mb-4 flex items-center gap-2"><Thermometer className="w-4 h-4 text-cyan-400" /> 24-Hour Temperature Log</h3>
+      <div className="bg-white border border-[#E0E8F0] rounded-xl p-5">
+        <h3 className="font-semibold text-[#0D2847] mb-4 flex items-center gap-2"><Thermometer className="w-4 h-4 text-cyan-400" /> 24-Hour Temperature Log</h3>
         {chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={chartData}>
@@ -130,17 +130,17 @@ export default function ColdStorageDetailPage() {
 
       {/* Clients + Alerts */}
       <div className="grid lg:grid-cols-2 gap-5">
-        <div className="bg-[#111827] border border-[#1e293b] rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#1e293b]"><h3 className="font-semibold text-slate-100">Storage Clients</h3></div>
+        <div className="bg-white border border-[#E0E8F0] rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#E0E8F0]"><h3 className="font-semibold text-[#0D2847]">Storage Clients</h3></div>
           <table>
             <thead><tr><th>Client</th><th>Product</th><th>Space</th><th>Since</th></tr></thead>
             <tbody>
               {unit.storageClients?.map((c: any) => (
                 <tr key={c.id}>
-                  <td className="font-medium text-slate-200">{c.clientName}</td>
-                  <td className="text-xs text-slate-400">{c.productType || '—'}</td>
-                  <td className="text-slate-300">{c.spaceUsed} {unit.capacityUnit}</td>
-                  <td className="text-xs text-slate-500">{formatDate(c.startDate)}</td>
+                  <td className="font-medium text-[#0D2847]">{c.clientName}</td>
+                  <td className="text-xs text-[#7A9AB8]">{c.productType || '—'}</td>
+                  <td className="text-[#1A4A7A]">{c.spaceUsed} {unit.capacityUnit}</td>
+                  <td className="text-xs text-[#7A9AB8]">{formatDate(c.startDate)}</td>
                 </tr>
               ))}
               {!unit.storageClients?.length && <tr><td colSpan={4}><EmptyState message="No clients" /></td></tr>}
@@ -148,26 +148,26 @@ export default function ColdStorageDetailPage() {
           </table>
         </div>
 
-        <div className="bg-[#111827] border border-[#1e293b] rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#1e293b]"><h3 className="font-semibold text-slate-100">Recent Alerts</h3></div>
+        <div className="bg-white border border-[#E0E8F0] rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#E0E8F0]"><h3 className="font-semibold text-[#0D2847]">Recent Alerts</h3></div>
           <div className="divide-y divide-[#1e293b]">
             {unit.alerts?.slice(0, 6).map((a: any) => (
               <div key={a.id} className="px-5 py-3 flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-200">{a.alertType.replace(/_/g,' ')}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{a.message?.substring(0, 60)}...</p>
+                  <p className="text-sm text-[#0D2847]">{a.alertType.replace(/_/g,' ')}</p>
+                  <p className="text-xs text-[#7A9AB8] mt-0.5">{a.message?.substring(0, 60)}...</p>
                 </div>
                 <div className="text-right flex-shrink-0 ml-3">
-                  <p className={`text-xs font-bold ${a.temperature != null ? (Math.abs(a.temperature - unit.targetTemp) >= 5 ? 'text-red-400' : 'text-amber-400') : 'text-slate-400'}`}>
+                  <p className={`text-xs font-bold ${a.temperature != null ? (Math.abs(a.temperature - unit.targetTemp) >= 5 ? 'text-[#DC2626]' : 'text-[#F59E0B]') : 'text-[#7A9AB8]'}`}>
                     {a.temperature != null ? `${a.temperature}°C` : ''}
                   </p>
-                  <span className={`text-xs px-1.5 py-0.5 rounded ${a.isResolved ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${a.isResolved ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'}`}>
                     {a.isResolved ? 'Resolved' : 'Active'}
                   </span>
                 </div>
               </div>
             ))}
-            {!unit.alerts?.length && <div className="px-5 py-8 text-center text-slate-600 text-sm">No alerts</div>}
+            {!unit.alerts?.length && <div className="px-5 py-8 text-center text-[#7A9AB8] text-sm">No alerts</div>}
           </div>
         </div>
       </div>
@@ -175,18 +175,18 @@ export default function ColdStorageDetailPage() {
       {/* Log Temperature Modal */}
       <Modal isOpen={logModal} onClose={() => setLogModal(false)} title="Log Temperature" size="sm">
         <div className="p-5 space-y-4">
-          <p className="text-sm text-slate-400">Target: <span className="text-blue-400 font-bold">{unit.targetTemp}°C</span></p>
+          <p className="text-sm text-[#7A9AB8]">Target: <span className="text-[#42A5F5] font-bold">{unit.targetTemp}°C</span></p>
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">Temperature (°C) *</label>
+            <label className="block text-xs font-medium text-[#7A9AB8] mb-1.5">Temperature (°C) *</label>
             <input type="number" step="0.1" value={logForm.temperature || ''} onChange={e => setLogForm((p: any) => ({ ...p, temperature: parseFloat(e.target.value) }))} placeholder={`${unit.targetTemp}`} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">Humidity (%)</label>
+            <label className="block text-xs font-medium text-[#7A9AB8] mb-1.5">Humidity (%)</label>
             <input type="number" step="0.1" value={logForm.humidity || ''} onChange={e => setLogForm((p: any) => ({ ...p, humidity: parseFloat(e.target.value) }))} placeholder="65" />
           </div>
           <div className="flex gap-3 pt-2">
-            <button onClick={() => setLogModal(false)} className="flex-1 py-2.5 text-sm text-slate-300 bg-[#1a2035] rounded-lg">Cancel</button>
-            <button onClick={() => logMutation.mutate(logForm)} disabled={logMutation.isPending} className="flex-1 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg">
+            <button onClick={() => setLogModal(false)} className="flex-1 py-2.5 text-sm text-[#1A4A7A] bg-[#F4F6F8] rounded-lg">Cancel</button>
+            <button onClick={() => logMutation.mutate(logForm)} disabled={logMutation.isPending} className="flex-1 py-2.5 text-sm font-medium text-white bg-[#1565C0] hover:bg-[#0D2847] disabled:opacity-50 rounded-lg">
               {logMutation.isPending ? 'Logging...' : 'Log Temperature'}
             </button>
           </div>

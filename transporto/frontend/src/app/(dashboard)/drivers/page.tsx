@@ -49,43 +49,43 @@ export default function DriversPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-        <h2 className="text-2xl font-bold text-slate-900">Drivers</h2>
-        <p className="text-sm text-slate-500 mt-0.5">Manage fleet drivers</p>
+        <h2 className="font-['Oswald'] text-xl font-bold text-[#0D2847] tracking-wide uppercase">Drivers</h2>
+        <p className="font-['Rajdhani'] text-sm text-[#7A9AB8] mt-0.5">Manage fleet drivers</p>
         </div>
         <button onClick={() => { setForm({}); setEditDriver(null); setModalOpen(true); }}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition-colors">
+          className="flex items-center gap-2 bg-[#1565C0] hover:bg-[#0D2847] text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition-colors">
           <Plus className="w-4 h-4" /> Add Driver
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-5 flex flex-wrap gap-3">
+      <div className="bg-white rounded-xl border border-[#E0E8F0] shadow-sm p-4 mb-5 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search name, phone, license..." className="h-10 pl-10 rounded-lg border border-slate-300 text-sm text-slate-900 w-full" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7A9AB8]" />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search name, phone, license..." className="h-10 pl-10 rounded-lg border border-[#E0E8F0] text-sm text-[#0D2847] w-full" />
         </div>
-        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="h-10 w-40 rounded-lg border border-slate-300 text-sm text-slate-700">
+        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="h-10 w-40 rounded-lg border border-[#E0E8F0] text-sm text-[#0D2847]">
           <option value="">All Statuses</option>
           {STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
         </select>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-[#E0E8F0] shadow-sm overflow-hidden">
         {isLoading ? <LoadingSpinner /> : !data?.data?.length ? <EmptyState message="No drivers found" /> : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Driver</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Phone</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">License</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Experience</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Rating</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Vehicle</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</th>
+                <tr className="bg-[#F4F6F8] border-b border-[#E0E8F0]">
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Driver</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Phone</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">License</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Experience</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Rating</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Vehicle</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#1A4A7A]">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[#E0E8F0]">
                 {data.data.map((d: any) => (
                   <tr key={d.id} className="hover:bg-blue-50/50 transition-colors">
                     <td className="px-4 py-3.5">
@@ -94,14 +94,14 @@ export default function DriversPage() {
                           {d.name?.charAt(0)}
                         </div>
                         <div>
-                          <p className="font-medium text-slate-900 text-sm">{d.name}</p>
-                          <p className="text-xs text-slate-500">{d.city || '—'}</p>
+                          <p className="font-medium text-[#0D2847] text-sm">{d.name}</p>
+                          <p className="text-xs text-[#1A4A7A]">{d.city || '—'}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 text-sm text-slate-700 font-mono">{d.phone}</td>
-                    <td className="px-4 py-3.5 text-xs text-slate-700 font-mono">{d.licenseNumber}</td>
-                    <td className="px-4 py-3.5 text-slate-700">{d.experience ?? '—'} yrs</td>
+                    <td className="px-4 py-3.5 text-sm text-[#0D2847] font-mono">{d.phone}</td>
+                    <td className="px-4 py-3.5 text-xs text-[#0D2847] font-mono">{d.licenseNumber}</td>
+                    <td className="px-4 py-3.5 text-[#0D2847]">{String(d.experience ?? 0)} yrs</td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1 text-amber-600">
                         <Star className="w-3.5 h-3.5 fill-current" />
@@ -109,12 +109,12 @@ export default function DriversPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3.5"><StatusBadge status={d.status} /></td>
-                    <td className="px-4 py-3.5 text-slate-500 text-xs font-mono">{d.assignments?.[0]?.vehicle?.regNumber || '—'}</td>
+                    <td className="px-4 py-3.5 text-[#1A4A7A] text-xs font-mono">{d.assignments?.[0]?.vehicle?.regNumber || '—'}</td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1">
                         <Link href={`/drivers/${d.id}`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Eye className="w-4 h-4" /></Link>
-                        <button onClick={() => { setForm({ ...d }); setEditDriver(d); setModalOpen(true); }} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
-                        <button onClick={() => setDeleteId(d.id)} className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                        <button onClick={() => { setForm({ ...d }); setEditDriver(d); setModalOpen(true); }} className="p-2 text-[#1A4A7A] hover:bg-slate-100 rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => setDeleteId(d.id)} className="p-2 text-[#1A4A7A] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -137,7 +137,7 @@ export default function DriversPage() {
             ))}
             <div>
               <label className="block text-xs font-medium text-[#475569] mb-1.5">License Expiry *</label>
-              <input type="date" value={form.licenseExpiry ? form.licenseExpiry.split('T')[0] : ''} onChange={f('licenseExpiry')} className="border border-[#cbd5e1] rounded-lg" />
+              <input type="date" value={form.licenseExpiry ? String(form.licenseExpiry).split('T')[0] : ''} onChange={f('licenseExpiry')} className="border border-[#cbd5e1] rounded-lg" />
             </div>
             <div>
               <label className="block text-xs font-medium text-[#475569] mb-1.5">Status</label>
