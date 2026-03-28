@@ -321,6 +321,44 @@ model Vehicle {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  // Vehicle Identity
+  ownerName           String?
+  registrationDate    DateTime?
+  rcNumber            String?
+
+  // PUC (Pollution Under Control)
+  pucNumber           String?
+  pucIssueDate        DateTime?
+  pucExpiryDate       DateTime?
+  pucCertificateUrl   String?
+
+  // Insurance (on-vehicle)
+  insurancePolicyNumber   String?
+  insuranceCompany        String?
+  insuranceStartDate      DateTime?
+  insuranceExpiryDate     DateTime?
+  insuranceCertificateUrl String?
+  insuranceType           String?
+
+  // Fitness Certificate
+  fitnessNumber         String?
+  fitnessIssueDate      DateTime?
+  fitnessExpiryDate     DateTime?
+  fitnessCertificateUrl String?
+
+  // Road Tax
+  taxReceiptNumber    String?
+  taxPaidDate         DateTime?
+  taxExpiryDate       DateTime?
+  taxReceiptUrl       String?
+  taxAmount           Float?
+
+  // Permit
+  permitNumber        String?
+  permitType          String?
+  permitExpiryDate    DateTime?
+  permitUrl           String?
+
   trips           Trip[]
   fuelEntries     FuelEntry[]
   maintenance     Maintenance[]

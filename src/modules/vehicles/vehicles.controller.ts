@@ -29,6 +29,20 @@ export class VehiclesController {
     return this.vehiclesService.getStats();
   }
 
+  @Get('expiring-documents')
+  @ApiOperation({ summary: 'Get vehicles with expiring or expired documents' })
+  @ApiQuery({ name: 'days', required: false, description: 'Days ahead to check (default 30)' })
+  getExpiringDocuments(@Query('days') days?: string) {
+    const daysAhead = days ? parseInt(days, 10) : 30;
+    return this.vehiclesService.getExpiringDocuments(daysAhead);
+  }
+
+  @Get('expiry-summary')
+  @ApiOperation({ summary: 'Get expired/expiring document counts for dashboard' })
+  getExpirySummary() {
+    return this.vehiclesService.getExpirySummary();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get vehicle detail with trips, fuel, maintenance, insurance' })
   findOne(@Param('id') id: string) {
