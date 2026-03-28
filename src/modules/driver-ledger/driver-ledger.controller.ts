@@ -7,11 +7,14 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { DriverLedgerService } from './driver-ledger.service';
+import { DriverLedgerPdfService } from './driver-ledger-pdf.service';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 
@@ -20,7 +23,10 @@ import { Roles } from '../../common/decorators/roles.decorator';
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller()
 export class DriverLedgerController {
-  constructor(private svc: DriverLedgerService) {}
+  constructor(
+    private svc: DriverLedgerService,
+    private pdfService: DriverLedgerPdfService,
+  ) {}
 
   // ── Ledger Entries ──────────────────────────
 
@@ -96,6 +102,29 @@ export class DriverLedgerController {
   @ApiOperation({ summary: 'Delete ledger entry' })
   deleteEntry(@Param('id') id: string) {
     return this.svc.deleteEntry(id);
+  }
+
+  // ── PDF Generation ─────────────────────────
+
+  @Post('driver-ledger/pdf/:driverId')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @ApiOperation({ summary: 'Generate driver ledger PDF for a month' })
+  @ApiQuery({ name: 'month', required: true })
+  @ApiQuery({ name: 'year', required: true })
+  async generatePdf(
+    @Param('driverId') driverId: string,
+    @Query() query: { month: string; year: string },
+    @Res() res: Response,
+  ) {
+    const month = Number(query.month);
+    const year = Number(query.year);
+    const pdfBuffer = await this.pdfService.generate(driverId, month, year);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="ledger-${driverId}-${month}-${year}.pdf"`,
+      'Content-Length': pdfBuffer.length,
+    });
+    res.end(pdfBuffer);
   }
 
   // ── Salary Management ──────────────────────
