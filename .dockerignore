@@ -1,0 +1,18 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.*
+*.md
+docker-compose*.yml
+.vscode
+.cursor
+.claude
+.agent
+
+# Frontend / non-backend directories that may end up in the build context
+frontend
+**/frontend
+**/*.tsx
+**/*.jsx
