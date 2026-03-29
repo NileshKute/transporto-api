@@ -5,6 +5,7 @@ RUN npm install
 COPY . .
 COPY src/assets src/assets
 RUN npx prisma generate
+RUN npx prisma migrate deploy
 RUN npm run build
 EXPOSE 8080
 CMD ["node", "dist/src/main.js"]
