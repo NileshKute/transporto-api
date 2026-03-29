@@ -20,5 +20,6 @@
     "paths": {
       "@/*": ["src/*"]
     }
-  }
+  },
+  "exclude": ["node_modules", "dist", "transporto", "frontend", "**/*.spec.ts", "**/*.test.ts"]
 }
