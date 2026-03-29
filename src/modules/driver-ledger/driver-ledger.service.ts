@@ -6,6 +6,16 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
+const CREDIT_TYPES = ['EXTRA_DUTY', 'BONUS'];
+const DEBIT_TYPES = ['ADVANCE_RECOVERY', 'PENALTY', 'FOOD', 'FUEL_ADVANCE', 'TOLL', 'MAINTENANCE'];
+
+function classifyEntry(type: string, amount: number): 'credit' | 'debit' {
+  if (CREDIT_TYPES.includes(type)) return 'credit';
+  if (DEBIT_TYPES.includes(type)) return 'debit';
+  if (type === 'OTHER') return amount >= 0 ? 'credit' : 'debit';
+  return 'debit';
+}
+
 @Injectable()
 export class DriverLedgerService {
   constructor(private prisma: PrismaService) {}
@@ -76,6 +86,7 @@ export class DriverLedgerService {
     const date = dto.date ? new Date(dto.date) : new Date();
     const entryMonth = dto.month ?? date.getMonth() + 1;
     const entryYear = dto.year ?? date.getFullYear();
+    const paid = dto.isPaid === true || dto.isPaid === 'true';
 
     const entry = await this.prisma.driverLedger.create({
       data: {
@@ -91,6 +102,12 @@ export class DriverLedgerService {
         notes: dto.notes || null,
         month: entryMonth,
         year: entryYear,
+        isPaid: paid,
+        paidDate: paid ? new Date() : null,
+        paidMode: paid ? (dto.paidMode || null) : null,
+        paidRef: paid ? (dto.paidRef || null) : null,
+        paidBy: paid ? (dto.paidBy || null) : null,
+        paidNotes: paid ? (dto.paidNotes || null) : null,
       },
       include: { driver: { select: { name: true, phone: true } } },
     });
@@ -116,6 +133,29 @@ export class DriverLedgerService {
     return this.prisma.driverLedger.update({
       where: { id },
       data,
+      include: { driver: { select: { name: true, phone: true } } },
+    });
+  }
+
+  async markEntryPaid(id: string, dto: {
+    paidMode: string;
+    paidRef?: string;
+    paidBy: string;
+    paidNotes?: string;
+  }) {
+    const existing = await this.prisma.driverLedger.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Ledger entry not found');
+
+    return this.prisma.driverLedger.update({
+      where: { id },
+      data: {
+        isPaid: true,
+        paidDate: new Date(),
+        paidMode: dto.paidMode,
+        paidRef: dto.paidRef || null,
+        paidBy: dto.paidBy,
+        paidNotes: dto.paidNotes || null,
+      },
       include: { driver: { select: { name: true, phone: true } } },
     });
   }
@@ -149,26 +189,8 @@ export class DriverLedgerService {
       orderBy: { date: 'asc' },
     });
 
-    const creditTypes = ['EXTRA_DUTY', 'BONUS'];
-    const debitTypes = ['ADVANCE_RECOVERY', 'PENALTY', 'FOOD', 'FUEL_ADVANCE', 'TOLL', 'MAINTENANCE'];
-
-    let totalCredits = 0;
-    let totalDebits = 0;
-
-    for (const e of entries) {
-      const amt = Number(e.amount);
-      if (creditTypes.includes(e.type)) {
-        totalCredits += amt;
-      } else if (debitTypes.includes(e.type)) {
-        totalDebits += amt;
-      } else if (e.type === 'OTHER') {
-        if (amt >= 0) totalCredits += amt;
-        else totalDebits += Math.abs(amt);
-      }
-    }
-
+    const s = this.computePaidUnpaidSummary(entries);
     const baseSalary = Number(driver.baseSalary ?? (driver as any).salary ?? 0);
-    const netPayable = baseSalary + totalCredits - totalDebits;
 
     return {
       driver,
@@ -176,9 +198,8 @@ export class DriverLedgerService {
       month,
       year,
       baseSalary,
-      totalCredits,
-      totalDebits,
-      netPayable,
+      ...s,
+      netPayable: baseSalary + s.totalCredits - s.totalDebits,
       entries: entries.length,
     };
   }
@@ -227,30 +248,38 @@ export class DriverLedgerService {
       include: { driver: { select: { name: true, phone: true, employeeCode: true } } },
     });
 
-    const creditTypes = ['EXTRA_DUTY', 'BONUS'];
-    const debitTypes = ['ADVANCE_RECOVERY', 'PENALTY', 'FOOD', 'FUEL_ADVANCE', 'TOLL', 'MAINTENANCE'];
+    return {
+      entries,
+      summary: this.computePaidUnpaidSummary(entries),
+    };
+  }
 
-    let totalCredits = 0;
-    let totalDebits = 0;
+  private computePaidUnpaidSummary(entries: any[]) {
+    let paidCredits = 0, unpaidCredits = 0;
+    let paidDebits = 0, unpaidDebits = 0;
 
     for (const e of entries) {
       const amt = Math.abs(Number(e.amount));
-      if (creditTypes.includes(e.type)) totalCredits += amt;
-      else if (debitTypes.includes(e.type)) totalDebits += amt;
-      else if (e.type === 'OTHER') {
-        if (Number(e.amount) >= 0) totalCredits += amt;
-        else totalDebits += amt;
+      const side = classifyEntry(e.type, Number(e.amount));
+
+      if (side === 'credit') {
+        if (e.isPaid) paidCredits += amt;
+        else unpaidCredits += amt;
+      } else {
+        if (e.isPaid) paidDebits += amt;
+        else unpaidDebits += amt;
       }
     }
 
     return {
-      entries,
-      summary: {
-        totalCredits,
-        totalDebits,
-        net: totalCredits - totalDebits,
-        entryCount: entries.length,
-      },
+      paidCredits,
+      unpaidCredits,
+      paidDebits,
+      unpaidDebits,
+      totalCredits: paidCredits + unpaidCredits,
+      totalDebits: paidDebits + unpaidDebits,
+      net: (paidCredits + unpaidCredits) - (paidDebits + unpaidDebits),
+      entryCount: entries.length,
     };
   }
 
@@ -299,6 +328,9 @@ export class DriverLedgerService {
       description: dto.description || 'Cash advance',
       amount: dto.amount,
       isCredit: false,
+      isPaid: true,
+      paidMode: 'CASH',
+      paidBy: 'Admin',
       date: dto.date,
     });
   }
@@ -378,42 +410,57 @@ export class DriverLedgerService {
 
     const baseSalary = Number(driver.baseSalary ?? driver.salary ?? 0);
 
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+
     const entries = await this.prisma.driverLedger.findMany({
-      where: { driverId, month, year },
+      where: { driverId, date: { gte: startDate, lte: endDate } },
     });
 
-    let totalAdvances = 0;
     let extraDutyPay = 0;
     let bonuses = 0;
+    let totalAdvances = 0;
     let penalties = 0;
     let otherCredits = 0;
     let otherDebits = 0;
 
     for (const e of entries) {
-      const amt = Number(e.amount);
+      const amt = Math.abs(Number(e.amount));
+      const side = classifyEntry(e.type, Number(e.amount));
+
       switch (e.type) {
-        case 'ADVANCE':
-        case 'FUEL_ADVANCE':
-          totalAdvances += amt;
-          break;
         case 'EXTRA_DUTY':
-          extraDutyPay += amt;
+          if (!e.isPaid) extraDutyPay += amt;
           break;
         case 'BONUS':
-          bonuses += amt;
+          if (!e.isPaid) bonuses += amt;
+          break;
+        case 'ADVANCE_RECOVERY':
+        case 'FUEL_ADVANCE':
+          totalAdvances += amt;
           break;
         case 'PENALTY':
           penalties += amt;
           break;
-        default:
-          if (e.isCredit) otherCredits += amt;
+        case 'FOOD':
+        case 'TOLL':
+        case 'MAINTENANCE':
+          if (e.isPaid) totalAdvances += amt;
           else otherDebits += amt;
+          break;
+        default:
+          if (side === 'credit') {
+            if (!e.isPaid) otherCredits += amt;
+          } else {
+            if (e.isPaid) totalAdvances += amt;
+            else otherDebits += amt;
+          }
           break;
       }
     }
 
     const netPayable =
-      baseSalary - totalAdvances + extraDutyPay + bonuses - penalties + otherCredits - otherDebits;
+      baseSalary + extraDutyPay + bonuses + otherCredits - totalAdvances - penalties - otherDebits;
 
     const record = await this.prisma.driverSalary.upsert({
       where: { driverId_month_year: { driverId, month, year } },
@@ -518,6 +565,9 @@ export class DriverLedgerService {
       description: `Salary payment for ${record.month}/${record.year}`,
       amount: paidAmount,
       isCredit: true,
+      isPaid: true,
+      paidMode: dto.paymentMode || 'CASH',
+      paidBy: dto.paidBy || 'Admin',
       date: dto.paidDate || new Date().toISOString(),
       month: record.month,
       year: record.year,

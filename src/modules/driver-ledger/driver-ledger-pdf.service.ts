@@ -25,6 +25,8 @@ const C = {
   border: '#E0E8F0',
   gray: '#6B7B8D',
   black: '#1A1A1A',
+  green: '#16A34A',
+  orange: '#F59E0B',
 };
 
 const MONTHS = [
@@ -32,8 +34,8 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-const CREDIT_TYPES = ['EXTRA_DUTY', 'BONUS'];
-const DEBIT_TYPES = ['ADVANCE_RECOVERY', 'PENALTY', 'FOOD', 'FUEL_ADVANCE', 'TOLL', 'MAINTENANCE'];
+const CREDIT_TYPES = ['EXTRA_DUTY', 'BONUS', 'SALARY'];
+const DEBIT_TYPES = ['ADVANCE_RECOVERY', 'PENALTY', 'FOOD', 'FUEL_ADVANCE', 'TOLL', 'MAINTENANCE', 'ADVANCE'];
 
 function fmtCurrency(n: number): string {
   return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -95,6 +97,12 @@ function getPeriodTitle(filterType: string, params: any): string {
   }
 }
 
+function classifyEntry(type: string, amount: number): 'credit' | 'debit' {
+  if (CREDIT_TYPES.includes(type)) return 'credit';
+  if (DEBIT_TYPES.includes(type)) return 'debit';
+  return amount >= 0 ? 'credit' : 'debit';
+}
+
 const ML = 40;
 const MR = 40;
 const PW = 595.28;
@@ -126,16 +134,23 @@ export class DriverLedgerPdfService {
 
     let totalCredits = 0;
     let totalDebits = 0;
+    let paidCount = 0;
+    let unpaidCount = 0;
+    let paidAmount = 0;
+    let unpaidAmount = 0;
 
     for (const e of entries) {
-      const amt = Number(e.amount);
-      if (CREDIT_TYPES.includes(e.type)) {
-        totalCredits += amt;
-      } else if (DEBIT_TYPES.includes(e.type)) {
-        totalDebits += amt;
-      } else if (e.type === 'OTHER') {
-        if (amt >= 0) totalCredits += amt;
-        else totalDebits += Math.abs(amt);
+      const amt = Math.abs(Number(e.amount));
+      const side = classifyEntry(e.type, Number(e.amount));
+      if (side === 'credit') totalCredits += amt;
+      else totalDebits += amt;
+
+      if (e.isPaid) {
+        paidCount++;
+        paidAmount += amt;
+      } else {
+        unpaidCount++;
+        unpaidAmount += amt;
       }
     }
 
@@ -189,9 +204,8 @@ export class DriverLedgerPdfService {
         infoX, contactY, { width: 300 },
       );
 
-    const rightX = PW - MR;
     doc.fillColor(C.navy).font('Helvetica-Bold').fontSize(14)
-      .text('DRIVER LEDGER', rightX - 140, monoY + 1, { width: 140, align: 'right' });
+      .text('DRIVER LEDGER', PW - MR - 140, monoY + 1, { width: 140, align: 'right' });
 
     y = contactY + 16;
 
@@ -210,12 +224,13 @@ export class DriverLedgerPdfService {
       .text(periodTitle, ML, y, { width: CW, align: 'center' });
     y += 24;
 
-    // TABLE — 5 columns: Date | Description | Type | Credit | Debit
-    const colDate = 65;
-    const colType = 75;
-    const colCredit = 72;
-    const colDebit = 72;
-    const colDesc = CW - colDate - colType - colCredit - colDebit;
+    // TABLE — 6 columns: Date | Description | Type | Credit | Debit | Status
+    const colDate = 58;
+    const colType = 68;
+    const colCredit = 65;
+    const colDebit = 65;
+    const colStatus = 52;
+    const colDesc = CW - colDate - colType - colCredit - colDebit - colStatus;
 
     // Table header
     const headerH = 26;
@@ -223,17 +238,19 @@ export class DriverLedgerPdfService {
     doc.rect(ML, y, CW, headerH).fill(C.navy);
     doc.restore();
 
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(C.white);
+    doc.font('Helvetica-Bold').fontSize(8).fillColor(C.white);
     let cx = ML;
-    doc.text('Date', cx + 6, y + 8, { width: colDate - 6, align: 'left' });
+    doc.text('Date', cx + 4, y + 8, { width: colDate - 4, align: 'left' });
     cx += colDate;
-    doc.text('Description', cx + 6, y + 8, { width: colDesc - 6, align: 'left' });
+    doc.text('Description', cx + 4, y + 8, { width: colDesc - 4, align: 'left' });
     cx += colDesc;
-    doc.text('Type', cx + 4, y + 8, { width: colType - 4, align: 'left' });
+    doc.text('Type', cx + 3, y + 8, { width: colType - 3, align: 'left' });
     cx += colType;
-    doc.text('Credit', cx, y + 8, { width: colCredit - 6, align: 'right' });
+    doc.text('Credit', cx, y + 8, { width: colCredit - 4, align: 'right' });
     cx += colCredit;
-    doc.text('Debit', cx, y + 8, { width: colDebit - 6, align: 'right' });
+    doc.text('Debit', cx, y + 8, { width: colDebit - 4, align: 'right' });
+    cx += colDebit;
+    doc.text('Status', cx + 3, y + 8, { width: colStatus - 3, align: 'left' });
 
     doc.save();
     doc.lineWidth(1).strokeColor(C.navy)
@@ -248,8 +265,8 @@ export class DriverLedgerPdfService {
 
     entries.forEach((entry, idx) => {
       const descText = String(entry.description || '—');
-      doc.font('Helvetica').fontSize(9);
-      const descH = doc.heightOfString(descText, { width: colDesc - 12 });
+      doc.font('Helvetica').fontSize(8);
+      const descH = doc.heightOfString(descText, { width: colDesc - 10 });
       const rowH = Math.max(minRowH, descH + descPad * 2);
 
       if (y + rowH > 720) {
@@ -264,25 +281,33 @@ export class DriverLedgerPdfService {
       }
 
       const amt = Number(entry.amount);
-      const isCredit = CREDIT_TYPES.includes(entry.type) || (entry.type === 'OTHER' && amt >= 0);
-      const isDebit = DEBIT_TYPES.includes(entry.type) || (entry.type === 'OTHER' && amt < 0);
-
+      const side = classifyEntry(entry.type, amt);
       const textY = y + descPad;
 
       cx = ML;
-      doc.font('Helvetica').fontSize(8).fillColor(C.black);
-      doc.text(fmtDate(entry.date), cx + 6, textY, { width: colDate - 6, align: 'left' });
+      doc.font('Helvetica').fontSize(7).fillColor(C.black);
+      doc.text(fmtDate(entry.date), cx + 4, textY, { width: colDate - 4, align: 'left' });
       cx += colDate;
-      doc.font('Helvetica').fontSize(9).fillColor(C.black);
-      doc.text(descText, cx + 6, textY, { width: colDesc - 12, align: 'left' });
+      doc.font('Helvetica').fontSize(8).fillColor(C.black);
+      doc.text(descText, cx + 4, textY, { width: colDesc - 10, align: 'left' });
       cx += colDesc;
-      doc.font('Helvetica').fontSize(7).fillColor(C.gray);
-      doc.text(entry.type.replace(/_/g, ' '), cx + 4, textY, { width: colType - 4, align: 'left' });
+      doc.font('Helvetica').fontSize(6.5).fillColor(C.gray);
+      doc.text(entry.type.replace(/_/g, ' '), cx + 3, textY, { width: colType - 3, align: 'left' });
       cx += colType;
       doc.font('Helvetica').fontSize(8).fillColor(C.black);
-      doc.text(isCredit ? fmtCurrency(amt) : '', cx, textY, { width: colCredit - 6, align: 'right' });
+      doc.text(side === 'credit' ? fmtCurrency(Math.abs(amt)) : '', cx, textY, { width: colCredit - 4, align: 'right' });
       cx += colCredit;
-      doc.text(isDebit ? fmtCurrency(Math.abs(amt)) : '', cx, textY, { width: colDebit - 6, align: 'right' });
+      doc.text(side === 'debit' ? fmtCurrency(Math.abs(amt)) : '', cx, textY, { width: colDebit - 4, align: 'right' });
+      cx += colDebit;
+      const statusLabel = entry.isPaid ? 'PAID' : 'PENDING';
+      const statusColor = entry.isPaid ? C.green : C.orange;
+      doc.font('Helvetica-Bold').fontSize(6.5).fillColor(statusColor);
+      doc.text(statusLabel, cx + 3, textY, { width: colStatus - 3, align: 'left' });
+
+      if (entry.isPaid && entry.paidMode) {
+        doc.font('Helvetica').fontSize(5.5).fillColor(C.gray);
+        doc.text(`(${entry.paidMode})`, cx + 3, textY + 9, { width: colStatus - 3, align: 'left' });
+      }
 
       doc.save();
       doc.lineWidth(0.5).strokeColor(C.border)
@@ -306,11 +331,11 @@ export class DriverLedgerPdfService {
 
     doc.font('Helvetica-Bold').fontSize(9).fillColor(C.navy);
     cx = ML;
-    doc.text('Total', cx + 6, y + 6, { width: colDate + colDesc + colType - 6, align: 'left' });
+    doc.text('Total', cx + 4, y + 6, { width: colDate + colDesc + colType - 4, align: 'left' });
     cx = ML + colDate + colDesc + colType;
-    doc.text(fmtCurrency(totalCredits), cx, y + 6, { width: colCredit - 6, align: 'right' });
+    doc.text(fmtCurrency(totalCredits), cx, y + 6, { width: colCredit - 4, align: 'right' });
     cx += colCredit;
-    doc.text(fmtCurrency(totalDebits), cx, y + 6, { width: colDebit - 6, align: 'right' });
+    doc.text(fmtCurrency(totalDebits), cx, y + 6, { width: colDebit - 4, align: 'right' });
 
     doc.save();
     doc.lineWidth(1).strokeColor(C.navy)
@@ -334,7 +359,17 @@ export class DriverLedgerPdfService {
     doc.lineWidth(1).strokeColor(C.navy).rect(ML, y, CW, netRowH).stroke();
     doc.restore();
 
-    y += netRowH + 20;
+    y += netRowH + 10;
+
+    // PAID / UNPAID SUMMARY
+    if (y + 30 > 720) { doc.addPage(); y = 40; }
+    doc.font('Helvetica').fontSize(8).fillColor(C.gray);
+    doc.text(
+      `Paid entries: ${paidCount} entries (\u20B9${fmtCurrency(paidAmount)} settled)    |    Unpaid entries: ${unpaidCount} entries (\u20B9${fmtCurrency(unpaidAmount)} pending for salary)`,
+      ML, y, { width: CW, align: 'center' },
+    );
+
+    y += 26;
 
     // SIGNATURE
     if (y > 720) { doc.addPage(); y = 40; }

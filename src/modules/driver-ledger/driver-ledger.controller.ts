@@ -101,6 +101,16 @@ export class DriverLedgerController {
     return this.svc.recordExtraDuty(dto);
   }
 
+  @Put('driver-ledger/:id/mark-paid')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @ApiOperation({ summary: 'Mark ledger entry as paid' })
+  markEntryPaid(
+    @Param('id') id: string,
+    @Body() dto: { paidMode: string; paidRef?: string; paidBy: string; paidNotes?: string },
+  ) {
+    return this.svc.markEntryPaid(id, dto);
+  }
+
   @Put('driver-ledger/:id')
   @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Update ledger entry' })

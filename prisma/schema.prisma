@@ -961,6 +961,12 @@ model DriverLedger {
   notes         String?         @db.Text
   month         Int?
   year          Int?
+  isPaid        Boolean         @default(false)
+  paidDate      DateTime?
+  paidMode      String?
+  paidRef       String?
+  paidBy        String?
+  paidNotes     String?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
