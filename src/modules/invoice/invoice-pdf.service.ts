@@ -5,7 +5,7 @@ import * as fs from 'fs';
 
 const COMPANY = {
   name: 'G K ENTERPRISE',
-  type: 'FLEET OWNERS & TRANSPORT CONTRACTORS',
+  type: 'FLEET OWNERS & COLD CHAIN LOGISTICS SPECIALISTS',
   proprietor: 'Ganesh Kute',
   address:
     'Office 402, SHREE GANESH CHS LTD, PLOT NO 151, PHASE II, NAVDE, TALOJA, PANVEL, NAVI MUMBAI 410208',
