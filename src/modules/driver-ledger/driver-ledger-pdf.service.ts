@@ -175,9 +175,9 @@ export class DriverLedgerPdfService {
     y += 24;
 
     // TABLE
-    const colDate = 80;
-    const colCredit = 90;
-    const colDebit = 90;
+    const colDate = 70;
+    const colCredit = 80;
+    const colDebit = 80;
     const colDesc = CW - colDate - colCredit - colDebit;
 
     // Table header
@@ -205,11 +205,16 @@ export class DriverLedgerPdfService {
     y += headerH;
 
     // Table rows
-    const rowH = 20;
-    doc.font('Helvetica').fontSize(8);
+    const minRowH = 20;
+    const descPad = 6;
 
     entries.forEach((entry, idx) => {
-      if (y > 720) {
+      const descText = String(entry.description || '—');
+      doc.font('Helvetica').fontSize(9);
+      const descH = doc.heightOfString(descText, { width: colDesc - 12 });
+      const rowH = Math.max(minRowH, descH + descPad * 2);
+
+      if (y + rowH > 720) {
         doc.addPage();
         y = 40;
       }
@@ -224,17 +229,20 @@ export class DriverLedgerPdfService {
       const isCredit = CREDIT_TYPES.includes(entry.type) || (entry.type === 'OTHER' && amt >= 0);
       const isDebit = DEBIT_TYPES.includes(entry.type) || (entry.type === 'OTHER' && amt < 0);
 
-      cx = ML;
-      doc.fillColor(C.black);
-      doc.text(fmtDate(entry.date), cx + 6, y + 6, { width: colDate - 6, align: 'left' });
-      cx += colDate;
-      doc.text(String(entry.description || '').slice(0, 45), cx + 6, y + 6, { width: colDesc - 12, align: 'left' });
-      cx += colDesc;
-      doc.text(isCredit ? fmtCurrency(amt) : '', cx, y + 6, { width: colCredit - 6, align: 'right' });
-      cx += colCredit;
-      doc.text(isDebit ? fmtCurrency(Math.abs(amt)) : '', cx, y + 6, { width: colDebit - 6, align: 'right' });
+      const textY = y + descPad;
 
-      // Row border
+      cx = ML;
+      doc.font('Helvetica').fontSize(8).fillColor(C.black);
+      doc.text(fmtDate(entry.date), cx + 6, textY, { width: colDate - 6, align: 'left' });
+      cx += colDate;
+      doc.font('Helvetica').fontSize(9).fillColor(C.black);
+      doc.text(descText, cx + 6, textY, { width: colDesc - 12, align: 'left' });
+      cx += colDesc;
+      doc.font('Helvetica').fontSize(8).fillColor(C.black);
+      doc.text(isCredit ? fmtCurrency(amt) : '', cx, textY, { width: colCredit - 6, align: 'right' });
+      cx += colCredit;
+      doc.text(isDebit ? fmtCurrency(Math.abs(amt)) : '', cx, textY, { width: colDebit - 6, align: 'right' });
+
       doc.save();
       doc.lineWidth(0.5).strokeColor(C.border)
         .moveTo(ML, y + rowH).lineTo(ML + CW, y + rowH).stroke();
@@ -250,8 +258,9 @@ export class DriverLedgerPdfService {
     doc.restore();
     y += 1;
 
+    const totalRowH = minRowH + 2;
     doc.save();
-    doc.rect(ML, y, CW, rowH + 2).fill(C.bg);
+    doc.rect(ML, y, CW, totalRowH).fill(C.bg);
     doc.restore();
 
     doc.font('Helvetica-Bold').fontSize(9).fillColor(C.navy);
@@ -264,10 +273,10 @@ export class DriverLedgerPdfService {
 
     doc.save();
     doc.lineWidth(1).strokeColor(C.navy)
-      .rect(ML, y, CW, rowH + 2).stroke();
+      .rect(ML, y, CW, totalRowH).stroke();
     doc.restore();
 
-    y += rowH + 6;
+    y += totalRowH + 4;
 
     // SUMMARY SECTION
     const summaryRows = [
@@ -287,7 +296,7 @@ export class DriverLedgerPdfService {
         y = 40;
       }
 
-      const rH = row.bold ? rowH + 4 : rowH;
+      const rH = row.bold ? minRowH + 4 : minRowH;
 
       if (row.bold) {
         doc.save();
