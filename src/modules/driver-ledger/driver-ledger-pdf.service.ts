@@ -27,12 +27,15 @@ const C = {
 };
 
 const MONTHS = [
-  '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  '', 'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-function fmt(n: number): string {
-  return Math.round(n).toLocaleString('en-IN');
+const CREDIT_TYPES = ['EXTRA_DUTY', 'BONUS'];
+const DEBIT_TYPES = ['ADVANCE_RECOVERY', 'PENALTY', 'FOOD', 'FUEL_ADVANCE', 'TOLL', 'MAINTENANCE'];
+
+function fmtCurrency(n: number): string {
+  return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function fmtDate(d: Date | string): string {
@@ -70,25 +73,36 @@ export class DriverLedgerPdfService {
     });
     if (!driver) throw new NotFoundException('Driver not found');
 
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+
     const entries = await this.prisma.driverLedger.findMany({
-      where: { driverId, month, year },
+      where: {
+        driverId,
+        date: { gte: startDate, lte: endDate },
+      },
       orderBy: { date: 'asc' },
     });
 
     const baseSalary = Number(driver.baseSalary ?? driver.salary ?? 0);
 
-    let totalExtraDuty = 0;
-    let totalAdvances = 0;
+    let totalCredits = 0;
+    let totalDebits = 0;
+
     for (const e of entries) {
       const amt = Number(e.amount);
-      if (e.type === 'EXTRA_DUTY') totalExtraDuty += amt;
-      if (e.type === 'ADVANCE_RECOVERY' || e.type === 'FUEL_ADVANCE') {
-        totalAdvances += amt;
+      if (CREDIT_TYPES.includes(e.type)) {
+        totalCredits += amt;
+      } else if (DEBIT_TYPES.includes(e.type)) {
+        totalDebits += amt;
+      } else if (e.type === 'OTHER') {
+        if (amt >= 0) totalCredits += amt;
+        else totalDebits += Math.abs(amt);
       }
     }
 
-    const salaryPlusExtra = baseSalary + totalExtraDuty;
-    const payable = salaryPlusExtra - totalAdvances;
+    const salaryPlusCredits = baseSalary + totalCredits;
+    const netPayable = salaryPlusCredits - totalDebits;
     const monthLabel = `${MONTHS[month]} ${year}`;
 
     const doc = new PDFDocument({
@@ -104,9 +118,7 @@ export class DriverLedgerPdfService {
 
     let y = 30;
 
-    // ═══════════════════════════════════════════
     // HEADER BARS
-    // ═══════════════════════════════════════════
     doc.save();
     doc.rect(0, 0, PW, 8).fill(C.navy);
     doc.rect(0, 8, PW, 3).fill(C.ice);
@@ -114,9 +126,7 @@ export class DriverLedgerPdfService {
 
     y = 20;
 
-    // ═══════════════════════════════════════════
     // GK MONOGRAM + COMPANY INFO
-    // ═══════════════════════════════════════════
     const monoX = ML;
     const monoY = y;
     const monoSize = 35;
@@ -155,9 +165,7 @@ export class DriverLedgerPdfService {
     doc.restore();
     y += 12;
 
-    // ═══════════════════════════════════════════
-    // DRIVER NAME + MONTH HEADING (centered)
-    // ═══════════════════════════════════════════
+    // DRIVER NAME + MONTH HEADING
     doc.fillColor(C.navy).font('Helvetica-Bold').fontSize(16)
       .text(driver.name, ML, y, { width: CW, align: 'center' });
     y += 22;
@@ -166,34 +174,37 @@ export class DriverLedgerPdfService {
       .text(`${monthLabel} Ledger`, ML, y, { width: CW, align: 'center' });
     y += 24;
 
-    // ═══════════════════════════════════════════
-    // TABLE HEADER
-    // ═══════════════════════════════════════════
+    // TABLE
     const colDate = 80;
-    const colDesc = CW - 80 - 110 - 110;
-    const colDenar = 110;
-    const colDile = 110;
+    const colCredit = 90;
+    const colDebit = 90;
+    const colDesc = CW - colDate - colCredit - colDebit;
 
-    const headerH = 28;
+    // Table header
+    const headerH = 26;
     doc.save();
     doc.rect(ML, y, CW, headerH).fill(C.navy);
     doc.restore();
 
     doc.font('Helvetica-Bold').fontSize(9).fillColor(C.white);
     let cx = ML;
-    doc.text('Date', cx + 6, y + 9, { width: colDate - 6, align: 'left' });
+    doc.text('Date', cx + 6, y + 8, { width: colDate - 6, align: 'left' });
     cx += colDate;
-    doc.text('Description', cx + 6, y + 9, { width: colDesc - 6, align: 'left' });
+    doc.text('Description', cx + 6, y + 8, { width: colDesc - 6, align: 'left' });
     cx += colDesc;
-    doc.text('देणार आहे', cx, y + 9, { width: colDenar, align: 'right' });
-    cx += colDenar;
-    doc.text('दिले आहेत', cx, y + 9, { width: colDile - 6, align: 'right' });
+    doc.text('Credit', cx, y + 8, { width: colCredit - 6, align: 'right' });
+    cx += colCredit;
+    doc.text('Debit', cx, y + 8, { width: colDebit - 6, align: 'right' });
+
+    // Table border
+    doc.save();
+    doc.lineWidth(1).strokeColor(C.navy)
+      .rect(ML, y, CW, headerH).stroke();
+    doc.restore();
 
     y += headerH;
 
-    // ═══════════════════════════════════════════
-    // TABLE ROWS
-    // ═══════════════════════════════════════════
+    // Table rows
     const rowH = 20;
     doc.font('Helvetica').fontSize(8);
 
@@ -210,19 +221,20 @@ export class DriverLedgerPdfService {
       }
 
       const amt = Number(entry.amount);
-      const isDenar = entry.type === 'EXTRA_DUTY';
-      const isDile = !isDenar;
+      const isCredit = CREDIT_TYPES.includes(entry.type) || (entry.type === 'OTHER' && amt >= 0);
+      const isDebit = DEBIT_TYPES.includes(entry.type) || (entry.type === 'OTHER' && amt < 0);
 
       cx = ML;
       doc.fillColor(C.black);
       doc.text(fmtDate(entry.date), cx + 6, y + 6, { width: colDate - 6, align: 'left' });
       cx += colDate;
-      doc.text(String(entry.description || '').slice(0, 40), cx + 6, y + 6, { width: colDesc - 12, align: 'left' });
+      doc.text(String(entry.description || '').slice(0, 45), cx + 6, y + 6, { width: colDesc - 12, align: 'left' });
       cx += colDesc;
-      doc.text(isDenar ? `₹ ${fmt(amt)}` : '', cx, y + 6, { width: colDenar, align: 'right' });
-      cx += colDenar;
-      doc.text(isDile ? `₹ ${fmt(amt)}` : '', cx, y + 6, { width: colDile - 6, align: 'right' });
+      doc.text(isCredit ? fmtCurrency(amt) : '', cx, y + 6, { width: colCredit - 6, align: 'right' });
+      cx += colCredit;
+      doc.text(isDebit ? fmtCurrency(Math.abs(amt)) : '', cx, y + 6, { width: colDebit - 6, align: 'right' });
 
+      // Row border
       doc.save();
       doc.lineWidth(0.5).strokeColor(C.border)
         .moveTo(ML, y + rowH).lineTo(ML + CW, y + rowH).stroke();
@@ -231,36 +243,38 @@ export class DriverLedgerPdfService {
       y += rowH;
     });
 
-    // ═══════════════════════════════════════════
-    // TOTALS ROW
-    // ═══════════════════════════════════════════
+    // Totals row
     doc.save();
-    doc.lineWidth(1).strokeColor(C.navy)
+    doc.lineWidth(1.5).strokeColor(C.navy)
       .moveTo(ML, y).lineTo(ML + CW, y).stroke();
     doc.restore();
-    y += 2;
+    y += 1;
 
     doc.save();
-    doc.rect(ML, y, CW, rowH).fill(C.bg);
+    doc.rect(ML, y, CW, rowH + 2).fill(C.bg);
     doc.restore();
 
     doc.font('Helvetica-Bold').fontSize(9).fillColor(C.navy);
     cx = ML;
-    doc.text('Total', cx + 6, y + 6, { width: colDate - 6, align: 'left' });
-    cx += colDate + colDesc;
-    doc.text(`₹ ${fmt(totalExtraDuty)}`, cx, y + 6, { width: colDenar, align: 'right' });
-    cx += colDenar;
-    doc.text(`₹ ${fmt(totalAdvances)}`, cx, y + 6, { width: colDile - 6, align: 'right' });
-    y += rowH + 4;
+    doc.text('Total', cx + 6, y + 6, { width: colDate + colDesc - 6, align: 'left' });
+    cx = ML + colDate + colDesc;
+    doc.text(fmtCurrency(totalCredits), cx, y + 6, { width: colCredit - 6, align: 'right' });
+    cx += colCredit;
+    doc.text(fmtCurrency(totalDebits), cx, y + 6, { width: colDebit - 6, align: 'right' });
 
-    // ═══════════════════════════════════════════
-    // FOOTER SUMMARY
-    // ═══════════════════════════════════════════
+    doc.save();
+    doc.lineWidth(1).strokeColor(C.navy)
+      .rect(ML, y, CW, rowH + 2).stroke();
+    doc.restore();
+
+    y += rowH + 6;
+
+    // SUMMARY SECTION
     const summaryRows = [
-      { label: `${monthLabel} Salary`, value: `₹ ${fmt(baseSalary)}` },
-      { label: 'Salary + Extra Working Amount', value: `₹ ${fmt(salaryPlusExtra)}` },
-      { label: 'Salary Against Advance', value: `₹ ${fmt(totalAdvances)}` },
-      { label: 'Payable', value: `₹ ${fmt(payable)}`, bold: true },
+      { label: `Base Salary (${monthLabel})`, value: fmtCurrency(baseSalary) },
+      { label: 'Salary + Extra Duty Amount', value: fmtCurrency(salaryPlusCredits) },
+      { label: 'Total Deductions', value: fmtCurrency(totalDebits) },
+      { label: 'NET PAYABLE', value: fmtCurrency(netPayable), bold: true },
       { label: 'Payment Date', value: '' },
     ];
 
@@ -273,36 +287,36 @@ export class DriverLedgerPdfService {
         y = 40;
       }
 
+      const rH = row.bold ? rowH + 4 : rowH;
+
       if (row.bold) {
         doc.save();
-        doc.rect(ML, y, CW, rowH + 2).fill(C.navy);
+        doc.rect(ML, y, CW, rH).fill(C.navy);
         doc.restore();
-        doc.font('Helvetica-Bold').fontSize(10).fillColor(C.white);
-        doc.text(row.label, ML + 6, y + 6, { width: labelW });
-        doc.text(row.value, ML + labelW, y + 6, { width: valW - 6, align: 'right' });
-        y += rowH + 2;
+        doc.font('Helvetica-Bold').fontSize(11).fillColor(C.white);
+        doc.text(row.label, ML + 6, y + 7, { width: labelW });
+        doc.text(row.value, ML + labelW, y + 7, { width: valW - 6, align: 'right' });
       } else {
         doc.save();
-        doc.rect(ML, y, CW, rowH).fill(C.bg);
+        doc.rect(ML, y, CW, rH).fill(C.bg);
         doc.restore();
         doc.font('Helvetica').fontSize(9).fillColor(C.black);
         doc.text(row.label, ML + 6, y + 6, { width: labelW });
         doc.font('Helvetica-Bold').fillColor(C.navy);
         doc.text(row.value, ML + labelW, y + 6, { width: valW - 6, align: 'right' });
-        y += rowH;
       }
 
       doc.save();
       doc.lineWidth(0.5).strokeColor(C.border)
-        .moveTo(ML, y).lineTo(ML + CW, y).stroke();
+        .rect(ML, y, CW, rH).stroke();
       doc.restore();
+
+      y += rH;
     }
 
     y += 20;
 
-    // ═══════════════════════════════════════════
     // SIGNATURE
-    // ═══════════════════════════════════════════
     if (y > 720) {
       doc.addPage();
       y = 40;
@@ -336,9 +350,7 @@ export class DriverLedgerPdfService {
     doc.font('Helvetica').fontSize(7.5).fillColor(C.gray)
       .text('Proprietor', sigBlockX, y, { width: 140, align: 'center' });
 
-    // ═══════════════════════════════════════════
     // FOOTER BARS
-    // ═══════════════════════════════════════════
     const pageH = 841.89;
     doc.save();
     doc.rect(0, pageH - 11, PW, 3).fill(C.ice);

@@ -134,54 +134,52 @@ export class DriverLedgerService {
   async getDriverSummary(driverId: string, query: any) {
     const driver = await this.prisma.driver.findFirst({
       where: { id: driverId, isDeleted: false },
-      select: { id: true, name: true, phone: true, employeeCode: true, baseSalary: true },
+      select: { id: true, name: true, phone: true, employeeCode: true, baseSalary: true, salary: true },
     });
     if (!driver) throw new NotFoundException('Driver not found');
 
     const month = query.month ? Number(query.month) : new Date().getMonth() + 1;
     const year = query.year ? Number(query.year) : new Date().getFullYear();
 
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+
     const entries = await this.prisma.driverLedger.findMany({
-      where: { driverId, month, year },
+      where: { driverId, date: { gte: startDate, lte: endDate } },
       orderBy: { date: 'asc' },
     });
 
+    const creditTypes = ['EXTRA_DUTY', 'BONUS'];
+    const debitTypes = ['ADVANCE_RECOVERY', 'PENALTY', 'FOOD', 'FUEL_ADVANCE', 'TOLL', 'MAINTENANCE'];
+
     let totalCredits = 0;
     let totalDebits = 0;
-    let advances = 0;
-    let extraDuty = 0;
-    let bonuses = 0;
-    let penalties = 0;
 
     for (const e of entries) {
       const amt = Number(e.amount);
-      if (e.isCredit) {
+      if (creditTypes.includes(e.type)) {
         totalCredits += amt;
-      } else {
+      } else if (debitTypes.includes(e.type)) {
         totalDebits += amt;
+      } else if (e.type === 'OTHER') {
+        if (amt >= 0) totalCredits += amt;
+        else totalDebits += Math.abs(amt);
       }
-      if (e.type === 'ADVANCE' || e.type === 'FUEL_ADVANCE') advances += amt;
-      if (e.type === 'EXTRA_DUTY') extraDuty += amt;
-      if (e.type === 'BONUS') bonuses += amt;
-      if (e.type === 'PENALTY') penalties += amt;
     }
 
-    const baseSalary = Number(driver.baseSalary ?? 0);
-    const netBalance = baseSalary - advances + extraDuty + bonuses - penalties;
+    const baseSalary = Number(driver.baseSalary ?? (driver as any).salary ?? 0);
+    const netPayable = baseSalary + totalCredits - totalDebits;
 
     return {
       driver,
+      driverName: driver.name,
       month,
       year,
       baseSalary,
       totalCredits,
       totalDebits,
-      advances,
-      extraDuty,
-      bonuses,
-      penalties,
-      netBalance,
-      entries,
+      netPayable,
+      entries: entries.length,
     };
   }
 
