@@ -82,7 +82,7 @@ export class DriverLedgerPdfService {
     for (const e of entries) {
       const amt = Number(e.amount);
       if (e.type === 'EXTRA_DUTY') totalExtraDuty += amt;
-      if (e.type === 'ADVANCE' || e.type === 'SALARY_AGAINST_ADVANCE' || e.type === 'FUEL_ADVANCE') {
+      if (e.type === 'ADVANCE_RECOVERY' || e.type === 'FUEL_ADVANCE') {
         totalAdvances += amt;
       }
     }
