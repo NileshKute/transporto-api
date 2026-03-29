@@ -988,6 +988,9 @@ model DriverSalary {
   status        SalaryStatus @default(PENDING)
   paidAmount    Decimal      @db.Decimal(12, 2) @default(0)
   paidDate      DateTime?
+  paymentMode   String?
+  transactionRef String?
+  paidBy        String?
   notes         String?      @db.Text
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt

@@ -1,12 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { DriverLedgerService } from './driver-ledger.service';
 import * as PDFDocument from 'pdfkit';
 import * as path from 'path';
 import * as fs from 'fs';
 
 const COMPANY = {
   name: 'G K ENTERPRISE',
-  type: 'FLEET OWNERS & COLD CHAIN LOGISTICS SPECIALISTS',
+  type: 'FLEET OWNERS & TRANSPORT CONTRACTORS',
   address:
     'Office 402, SHREE GANESH CHS LTD, PLOT NO 151, PHASE II, NAVDE, TALOJA, PANVEL, NAVI MUMBAI 410208',
   mobile: '+91 9324540988',
@@ -58,6 +59,42 @@ function resolveSignaturePath(): string | null {
   return null;
 }
 
+function getPeriodTitle(filterType: string, params: any): string {
+  const now = new Date();
+  switch (filterType) {
+    case 'month': {
+      const m = parseInt(params.month) || (now.getMonth() + 1);
+      const y = parseInt(params.year) || now.getFullYear();
+      return `${MONTHS[m]} ${y} Ledger`;
+    }
+    case 'year': {
+      if (params.financialYear) return `FY ${params.financialYear} Ledger`;
+      const yr = parseInt(params.year) || now.getFullYear();
+      return `Year ${yr} Ledger`;
+    }
+    case 'lastX': {
+      const months = parseInt(params.lastMonths) || 3;
+      const start = new Date(now.getFullYear(), now.getMonth() - months, 1);
+      const startLabel = `${MONTHS[start.getMonth() + 1]} ${start.getFullYear()}`;
+      const endLabel = `${MONTHS[now.getMonth() + 1]} ${now.getFullYear()}`;
+      return `Last ${months} Months Ledger (${startLabel} - ${endLabel})`;
+    }
+    case 'custom': {
+      if (params.startDate && params.endDate) {
+        return `${fmtDate(params.startDate)} to ${fmtDate(params.endDate)} Ledger`;
+      }
+      return 'Custom Period Ledger';
+    }
+    case 'all':
+      return 'Complete Ledger';
+    default: {
+      const m = parseInt(params.month) || (now.getMonth() + 1);
+      const y = parseInt(params.year) || now.getFullYear();
+      return `${MONTHS[m]} ${y} Ledger`;
+    }
+  }
+}
+
 const ML = 40;
 const MR = 40;
 const PW = 595.28;
@@ -65,26 +102,27 @@ const CW = PW - ML - MR;
 
 @Injectable()
 export class DriverLedgerPdfService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private ledgerService: DriverLedgerService,
+  ) {}
 
-  async generate(driverId: string, month: number, year: number): Promise<Buffer> {
+  async generate(driverId: string, query: any): Promise<Buffer> {
     const driver = await this.prisma.driver.findFirst({
       where: { id: driverId, isDeleted: false },
     });
     if (!driver) throw new NotFoundException('Driver not found');
 
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0, 23, 59, 59);
+    const filterType = query.filterType || 'month';
+    const dateFilter = this.ledgerService.buildDateFilter(filterType, query);
+
+    const where: any = { driverId };
+    if (dateFilter) where.date = dateFilter;
 
     const entries = await this.prisma.driverLedger.findMany({
-      where: {
-        driverId,
-        date: { gte: startDate, lte: endDate },
-      },
+      where,
       orderBy: { date: 'asc' },
     });
-
-    const baseSalary = Number(driver.baseSalary ?? driver.salary ?? 0);
 
     let totalCredits = 0;
     let totalDebits = 0;
@@ -101,9 +139,7 @@ export class DriverLedgerPdfService {
       }
     }
 
-    const salaryPlusCredits = baseSalary + totalCredits;
-    const netPayable = salaryPlusCredits - totalDebits;
-    const monthLabel = `${MONTHS[month]} ${year}`;
+    const periodTitle = getPeriodTitle(filterType, query);
 
     const doc = new PDFDocument({
       size: 'A4',
@@ -165,20 +201,21 @@ export class DriverLedgerPdfService {
     doc.restore();
     y += 12;
 
-    // DRIVER NAME + MONTH HEADING
+    // DRIVER NAME + PERIOD HEADING
     doc.fillColor(C.navy).font('Helvetica-Bold').fontSize(16)
       .text(driver.name, ML, y, { width: CW, align: 'center' });
     y += 22;
 
     doc.fillColor(C.gray).font('Helvetica').fontSize(12)
-      .text(`${monthLabel} Ledger`, ML, y, { width: CW, align: 'center' });
+      .text(periodTitle, ML, y, { width: CW, align: 'center' });
     y += 24;
 
-    // TABLE
-    const colDate = 70;
-    const colCredit = 80;
-    const colDebit = 80;
-    const colDesc = CW - colDate - colCredit - colDebit;
+    // TABLE — 5 columns: Date | Description | Type | Credit | Debit
+    const colDate = 65;
+    const colType = 75;
+    const colCredit = 72;
+    const colDebit = 72;
+    const colDesc = CW - colDate - colType - colCredit - colDebit;
 
     // Table header
     const headerH = 26;
@@ -192,11 +229,12 @@ export class DriverLedgerPdfService {
     cx += colDate;
     doc.text('Description', cx + 6, y + 8, { width: colDesc - 6, align: 'left' });
     cx += colDesc;
+    doc.text('Type', cx + 4, y + 8, { width: colType - 4, align: 'left' });
+    cx += colType;
     doc.text('Credit', cx, y + 8, { width: colCredit - 6, align: 'right' });
     cx += colCredit;
     doc.text('Debit', cx, y + 8, { width: colDebit - 6, align: 'right' });
 
-    // Table border
     doc.save();
     doc.lineWidth(1).strokeColor(C.navy)
       .rect(ML, y, CW, headerH).stroke();
@@ -238,6 +276,9 @@ export class DriverLedgerPdfService {
       doc.font('Helvetica').fontSize(9).fillColor(C.black);
       doc.text(descText, cx + 6, textY, { width: colDesc - 12, align: 'left' });
       cx += colDesc;
+      doc.font('Helvetica').fontSize(7).fillColor(C.gray);
+      doc.text(entry.type.replace(/_/g, ' '), cx + 4, textY, { width: colType - 4, align: 'left' });
+      cx += colType;
       doc.font('Helvetica').fontSize(8).fillColor(C.black);
       doc.text(isCredit ? fmtCurrency(amt) : '', cx, textY, { width: colCredit - 6, align: 'right' });
       cx += colCredit;
@@ -265,8 +306,8 @@ export class DriverLedgerPdfService {
 
     doc.font('Helvetica-Bold').fontSize(9).fillColor(C.navy);
     cx = ML;
-    doc.text('Total', cx + 6, y + 6, { width: colDate + colDesc - 6, align: 'left' });
-    cx = ML + colDate + colDesc;
+    doc.text('Total', cx + 6, y + 6, { width: colDate + colDesc + colType - 6, align: 'left' });
+    cx = ML + colDate + colDesc + colType;
     doc.text(fmtCurrency(totalCredits), cx, y + 6, { width: colCredit - 6, align: 'right' });
     cx += colCredit;
     doc.text(fmtCurrency(totalDebits), cx, y + 6, { width: colDebit - 6, align: 'right' });
@@ -278,58 +319,25 @@ export class DriverLedgerPdfService {
 
     y += totalRowH + 4;
 
-    // SUMMARY SECTION
-    const summaryRows = [
-      { label: `Base Salary (${monthLabel})`, value: fmtCurrency(baseSalary) },
-      { label: 'Salary + Extra Duty Amount', value: fmtCurrency(salaryPlusCredits) },
-      { label: 'Total Deductions', value: fmtCurrency(totalDebits) },
-      { label: 'NET PAYABLE', value: fmtCurrency(netPayable), bold: true },
-      { label: 'Payment Date', value: '' },
-    ];
+    // NET row
+    const net = totalCredits - totalDebits;
+    const netRowH = minRowH + 4;
+    if (y + netRowH > 760) { doc.addPage(); y = 40; }
 
-    const labelW = CW * 0.6;
-    const valW = CW * 0.4;
+    doc.save();
+    doc.rect(ML, y, CW, netRowH).fill(C.navy);
+    doc.restore();
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(C.white);
+    doc.text('Net (Credits - Debits)', ML + 6, y + 7, { width: CW * 0.6 });
+    doc.text(fmtCurrency(net), ML + CW * 0.6, y + 7, { width: CW * 0.4 - 6, align: 'right' });
+    doc.save();
+    doc.lineWidth(1).strokeColor(C.navy).rect(ML, y, CW, netRowH).stroke();
+    doc.restore();
 
-    for (const row of summaryRows) {
-      if (y > 760) {
-        doc.addPage();
-        y = 40;
-      }
-
-      const rH = row.bold ? minRowH + 4 : minRowH;
-
-      if (row.bold) {
-        doc.save();
-        doc.rect(ML, y, CW, rH).fill(C.navy);
-        doc.restore();
-        doc.font('Helvetica-Bold').fontSize(11).fillColor(C.white);
-        doc.text(row.label, ML + 6, y + 7, { width: labelW });
-        doc.text(row.value, ML + labelW, y + 7, { width: valW - 6, align: 'right' });
-      } else {
-        doc.save();
-        doc.rect(ML, y, CW, rH).fill(C.bg);
-        doc.restore();
-        doc.font('Helvetica').fontSize(9).fillColor(C.black);
-        doc.text(row.label, ML + 6, y + 6, { width: labelW });
-        doc.font('Helvetica-Bold').fillColor(C.navy);
-        doc.text(row.value, ML + labelW, y + 6, { width: valW - 6, align: 'right' });
-      }
-
-      doc.save();
-      doc.lineWidth(0.5).strokeColor(C.border)
-        .rect(ML, y, CW, rH).stroke();
-      doc.restore();
-
-      y += rH;
-    }
-
-    y += 20;
+    y += netRowH + 20;
 
     // SIGNATURE
-    if (y > 720) {
-      doc.addPage();
-      y = 40;
-    }
+    if (y > 720) { doc.addPage(); y = 40; }
 
     const sigBlockX = PW - MR - 140;
     doc.font('Helvetica-Bold').fontSize(9).fillColor(C.navy)

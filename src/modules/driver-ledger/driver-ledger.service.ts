@@ -183,6 +183,77 @@ export class DriverLedgerService {
     };
   }
 
+  buildDateFilter(filterType: string, params: any) {
+    const now = new Date();
+    switch (filterType) {
+      case 'month': {
+        const m = parseInt(params.month) || (now.getMonth() + 1);
+        const y = parseInt(params.year) || now.getFullYear();
+        return { gte: new Date(y, m - 1, 1), lte: new Date(y, m, 0, 23, 59, 59) };
+      }
+      case 'year': {
+        if (params.financialYear) {
+          const [startYr] = params.financialYear.split('-');
+          const fy = parseInt(startYr);
+          return { gte: new Date(fy, 3, 1), lte: new Date(fy + 1, 2, 31, 23, 59, 59) };
+        }
+        const yr = parseInt(params.year) || now.getFullYear();
+        return { gte: new Date(yr, 0, 1), lte: new Date(yr, 11, 31, 23, 59, 59) };
+      }
+      case 'lastX': {
+        const months = parseInt(params.lastMonths) || 3;
+        return { gte: new Date(now.getFullYear(), now.getMonth() - months, 1), lte: now };
+      }
+      case 'custom': {
+        if (!params.startDate || !params.endDate) return undefined;
+        return { gte: new Date(params.startDate), lte: new Date(params.endDate + 'T23:59:59') };
+      }
+      case 'all':
+      default:
+        return undefined;
+    }
+  }
+
+  async findByFilters(driverId: string, filterType: string, params: any) {
+    const where: any = {};
+    if (driverId) where.driverId = driverId;
+
+    const dateFilter = this.buildDateFilter(filterType || 'month', params);
+    if (dateFilter) where.date = dateFilter;
+
+    const entries = await this.prisma.driverLedger.findMany({
+      where,
+      orderBy: { date: 'asc' },
+      include: { driver: { select: { name: true, phone: true, employeeCode: true } } },
+    });
+
+    const creditTypes = ['EXTRA_DUTY', 'BONUS'];
+    const debitTypes = ['ADVANCE_RECOVERY', 'PENALTY', 'FOOD', 'FUEL_ADVANCE', 'TOLL', 'MAINTENANCE'];
+
+    let totalCredits = 0;
+    let totalDebits = 0;
+
+    for (const e of entries) {
+      const amt = Math.abs(Number(e.amount));
+      if (creditTypes.includes(e.type)) totalCredits += amt;
+      else if (debitTypes.includes(e.type)) totalDebits += amt;
+      else if (e.type === 'OTHER') {
+        if (Number(e.amount) >= 0) totalCredits += amt;
+        else totalDebits += amt;
+      }
+    }
+
+    return {
+      entries,
+      summary: {
+        totalCredits,
+        totalDebits,
+        net: totalCredits - totalDebits,
+        entryCount: entries.length,
+      },
+    };
+  }
+
   async getDriverBalance(driverId: string) {
     const driver = await this.prisma.driver.findFirst({
       where: { id: driverId, isDeleted: false },
@@ -410,7 +481,14 @@ export class DriverLedgerService {
     });
   }
 
-  async paySalary(id: string, dto: { paidAmount: number; paidDate?: string; notes?: string }) {
+  async paySalary(id: string, dto: {
+    paidAmount: number;
+    paidDate?: string;
+    paymentMode?: string;
+    transactionRef?: string;
+    paidBy?: string;
+    notes?: string;
+  }) {
     const record = await this.prisma.driverSalary.findUnique({ where: { id } });
     if (!record) throw new NotFoundException('Salary record not found');
 
@@ -424,6 +502,9 @@ export class DriverLedgerService {
       data: {
         paidAmount: totalPaid,
         paidDate: dto.paidDate ? new Date(dto.paidDate) : new Date(),
+        paymentMode: dto.paymentMode || null,
+        transactionRef: dto.transactionRef || null,
+        paidBy: dto.paidBy || null,
         status,
         notes: dto.notes ?? record.notes,
       },

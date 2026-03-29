@@ -33,21 +33,32 @@ export class DriverLedgerController {
   @Get('driver-ledger')
   @ApiOperation({ summary: 'List ledger entries with filters' })
   @ApiQuery({ name: 'driverId', required: false })
-  @ApiQuery({ name: 'type', required: false })
-  @ApiQuery({ name: 'dateFrom', required: false })
-  @ApiQuery({ name: 'dateTo', required: false })
+  @ApiQuery({ name: 'filterType', required: false })
   @ApiQuery({ name: 'month', required: false })
   @ApiQuery({ name: 'year', required: false })
+  @ApiQuery({ name: 'lastMonths', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'financialYear', required: false })
+  @ApiQuery({ name: 'type', required: false })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   findAllEntries(@Query() query: any) {
+    if (query.filterType) {
+      return this.svc.findByFilters(query.driverId, query.filterType, query);
+    }
     return this.svc.findAllEntries(query);
   }
 
   @Get('driver-ledger/summary/:driverId')
-  @ApiOperation({ summary: 'Monthly summary for a driver' })
+  @ApiOperation({ summary: 'Summary for a driver with flexible filters' })
+  @ApiQuery({ name: 'filterType', required: false })
   @ApiQuery({ name: 'month', required: false })
   @ApiQuery({ name: 'year', required: false })
+  @ApiQuery({ name: 'lastMonths', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'financialYear', required: false })
   getDriverSummary(
     @Param('driverId') driverId: string,
     @Query() query: any,
@@ -108,20 +119,23 @@ export class DriverLedgerController {
 
   @Post('driver-ledger/pdf/:driverId')
   @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
-  @ApiOperation({ summary: 'Generate driver ledger PDF for a month' })
-  @ApiQuery({ name: 'month', required: true })
-  @ApiQuery({ name: 'year', required: true })
+  @ApiOperation({ summary: 'Generate driver ledger PDF with flexible filters' })
+  @ApiQuery({ name: 'filterType', required: false })
+  @ApiQuery({ name: 'month', required: false })
+  @ApiQuery({ name: 'year', required: false })
+  @ApiQuery({ name: 'lastMonths', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'financialYear', required: false })
   async generatePdf(
     @Param('driverId') driverId: string,
-    @Query() query: { month: string; year: string },
+    @Query() query: any,
     @Res() res: Response,
   ) {
-    const month = Number(query.month);
-    const year = Number(query.year);
-    const pdfBuffer = await this.pdfService.generate(driverId, month, year);
+    const pdfBuffer = await this.pdfService.generate(driverId, query);
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="ledger-${driverId}-${month}-${year}.pdf"`,
+      'Content-Disposition': `attachment; filename="ledger-${driverId}.pdf"`,
       'Content-Length': pdfBuffer.length,
     });
     res.end(pdfBuffer);
@@ -173,7 +187,14 @@ export class DriverLedgerController {
   @ApiOperation({ summary: 'Mark salary as paid' })
   paySalary(
     @Param('id') id: string,
-    @Body() dto: { paidAmount: number; paidDate?: string; notes?: string },
+    @Body() dto: {
+      paidAmount: number;
+      paidDate?: string;
+      paymentMode?: string;
+      transactionRef?: string;
+      paidBy?: string;
+      notes?: string;
+    },
   ) {
     return this.svc.paySalary(id, dto);
   }
