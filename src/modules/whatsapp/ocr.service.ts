@@ -54,7 +54,9 @@ For RC Book (Registration Certificate):
 {"type": "RC_BOOK", "vehicleNumber": "", "ownerName": "", "ownerAddress": "", "make": "", "model": "", "fuelType": "", "engineNumber": "", "chassisNumber": "", "registrationDate": "DD/MM/YYYY", "color": "", "bodyType": "", "seatingCapacity": 0, "grossWeight": 0}
 
 For Driver License:
-{"type": "LICENSE", "licenseNumber": "", "name": "", "fatherName": "", "dateOfBirth": "DD/MM/YYYY", "address": "", "issueDate": "DD/MM/YYYY", "expiryDate": "DD/MM/YYYY", "vehicleClasses": "", "bloodGroup": ""}
+{"type": "LICENSE", "licenseNumber": "", "name": "", "fatherName": "", "dateOfBirth": "DD/MM/YYYY", "address": "", "issueDate": "DD/MM/YYYY", "expiryDate": "DD/MM/YYYY", "validityNT": "DD/MM/YYYY", "validityTR": "DD/MM/YYYY", "vehicleClasses": "", "bloodGroup": ""}
+
+IMPORTANT: For Indian licenses, the Expiry Date should be the Validity(NT) date, NOT the Issue Date. Look for 'Validity(NT)' field which is the main expiry. 'Validity(TR)' is for transport vehicles only. Put the main non-transport expiry in validityNT; also mirror it in expiryDate for consistency.
 
 For Fuel Receipt:
 {"type": "FUEL", "vehicleNumber": "", "date": "DD/MM/YYYY", "fuelType": "DIESEL/PETROL/CNG", "quantity": 0, "ratePerLitre": 0, "totalAmount": 0, "pumpName": "", "odometerReading": 0}

@@ -31,7 +31,7 @@ export class DataProcessorService {
         case 'RC_BOOK':
           return await this.processRcBook(ocrData);
         case 'LICENSE':
-          return await this.processLicense(ocrData);
+          return await this.processLicense(ocrData, senderPhone);
         case 'FUEL':
           return await this.processFuel(ocrData, senderPhone);
         case 'SPEEDOMETER':
@@ -51,9 +51,16 @@ export class DataProcessorService {
       return '❌ Vehicle number not found in PUC. Please send clearer photo.';
     }
 
-    const vehicle = await this.findVehicleByNumber(vehicleNumber);
+    let vehicle = await this.findVehicleByNumber(vehicleNumber);
     if (!vehicle) {
-      return `❌ Vehicle ${vehicleNumber} not found in system. Please add vehicle first.`;
+      vehicle = await this.prisma.vehicle.create({
+        data: this.stubVehicleCreate(vehicleNumber, {
+          pucNumber: this.str(data.pucNumber) || null,
+          pucIssueDate: this.parseDate(this.str(data.issueDate)),
+          pucExpiryDate: this.parseDate(this.str(data.expiryDate)),
+        }),
+      });
+      return `✅ *New Vehicle + PUC Created*\n\n🚛 Vehicle: ${vehicleNumber}\n📋 PUC: ${this.str(data.pucNumber) || 'N/A'}\n📅 Expiry: ${this.str(data.expiryDate) || 'N/A'}\n${data.emissionResult ? '🔬 Result: ' + String(data.emissionResult) : ''}`;
     }
 
     await this.prisma.vehicle.update({
@@ -76,9 +83,18 @@ export class DataProcessorService {
       return '❌ Vehicle number not found in Insurance. Please send clearer photo.';
     }
 
-    const vehicle = await this.findVehicleByNumber(vehicleNumber);
+    let vehicle = await this.findVehicleByNumber(vehicleNumber);
     if (!vehicle) {
-      return `❌ Vehicle ${vehicleNumber} not found in system. Please add vehicle first.`;
+      vehicle = await this.prisma.vehicle.create({
+        data: this.stubVehicleCreate(vehicleNumber, {
+          insurancePolicyNumber: this.str(data.policyNumber) || null,
+          insuranceCompany: this.str(data.company) || null,
+          insuranceStartDate: this.parseDate(this.str(data.startDate)),
+          insuranceExpiryDate: this.parseDate(this.str(data.expiryDate)),
+          insuranceType: this.str(data.insuranceType) || null,
+        }),
+      });
+      return `✅ *New Vehicle + Insurance Created*\n\n🚛 Vehicle: ${vehicleNumber}\n📋 Policy: ${this.str(data.policyNumber) || 'N/A'}\n🏢 Company: ${this.str(data.company) || 'N/A'}\n📅 Expiry: ${this.str(data.expiryDate) || 'N/A'}\n💰 Premium: ₹${data.premium ?? 'N/A'}`;
     }
 
     await this.prisma.vehicle.update({
@@ -101,7 +117,7 @@ export class DataProcessorService {
       return '❌ Vehicle number not found in RC. Please send clearer photo.';
     }
 
-    const vehicle = await this.findVehicleByNumber(vehicleNumber);
+    let vehicle = await this.findVehicleByNumber(vehicleNumber);
 
     if (vehicle) {
       await this.prisma.vehicle.update({
@@ -123,10 +139,26 @@ export class DataProcessorService {
       return `✅ *RC Book Updated*\n\n🚛 Vehicle: ${vehicleNumber}\n🏭 Make: ${this.str(data.make) || 'N/A'}\n📋 Model: ${this.str(data.model) || 'N/A'}\n🎨 Color: ${this.str(data.color) || 'N/A'}\n🔧 Engine: ${this.str(data.engineNumber) || 'N/A'}`;
     }
 
-    return `ℹ️ *RC Book Read*\n\n🚛 Vehicle: ${vehicleNumber} NOT in system.\n\nDetails found:\nMake: ${this.str(data.make) || 'N/A'}\nModel: ${this.str(data.model) || 'N/A'}\nOwner: ${this.str(data.ownerName) || 'N/A'}\n\nPlease add vehicle in the app first, then resend this photo.`;
+    vehicle = await this.prisma.vehicle.create({
+      data: this.stubVehicleCreate(vehicleNumber, {
+        make: this.str(data.make) || 'Unknown',
+        model: this.str(data.model) || 'Unknown',
+        color: this.str(data.color) || null,
+        engineNumber: this.str(data.engineNumber) || null,
+        chassisNumber: this.str(data.chassisNumber) || null,
+        fuelType: this.mapVehicleFuelType(data.fuelType) ?? 'DIESEL',
+        ownerName: this.str(data.ownerName) || null,
+        registrationDate: this.parseDate(this.str(data.registrationDate)),
+        year: this.yearFromRcData(data),
+      }),
+    });
+    return `✅ *New Vehicle Created from RC*\n\n🚛 Vehicle: ${vehicleNumber}\n🏭 Make: ${this.str(data.make) || 'N/A'}\n📋 Model: ${this.str(data.model) || 'N/A'}\n🎨 Color: ${this.str(data.color) || 'N/A'}\n🔧 Engine: ${this.str(data.engineNumber) || 'N/A'}\n📐 Chassis: ${this.str(data.chassisNumber) || 'N/A'}`;
   }
 
-  private async processLicense(data: Record<string, unknown>): Promise<string> {
+  private async processLicense(
+    data: Record<string, unknown>,
+    senderPhone: string,
+  ): Promise<string> {
     if (!this.str(data.licenseNumber) && !this.str(data.name)) {
       return '❌ Could not read license details. Please send clearer photo.';
     }
@@ -146,21 +178,60 @@ export class DataProcessorService {
     }
 
     if (driver) {
-      const expiry = this.parseDate(this.str(data.expiryDate));
+      const expiry = this.licenseExpiryFromData(data);
       const dob = this.parseDate(this.str(data.dateOfBirth));
       await this.prisma.driver.update({
         where: { id: driver.id },
         data: {
           licenseNumber: lic || driver.licenseNumber,
-          licenseExpiry: expiry ?? driver.licenseExpiry,
+          licenseExpiry: expiry,
           dateOfBirth: dob ?? driver.dateOfBirth,
           bloodGroup: this.str(data.bloodGroup) ?? driver.bloodGroup,
+          address: this.str(data.address) ?? driver.address,
         },
       });
-      return `✅ *License Updated*\n\n👤 Driver: ${driver.name}\n📋 License: ${lic || 'N/A'}\n📅 Expiry: ${this.str(data.expiryDate) || 'N/A'}\n🩸 Blood Group: ${this.str(data.bloodGroup) || 'N/A'}`;
+      const nt = this.str(data.validityNT) || this.str(data.expiryDate);
+      return `✅ *License Updated*\n\n👤 Driver: ${driver.name}\n📋 License: ${lic || 'N/A'}\n📅 Validity(NT): ${nt || 'N/A'}\n🩸 Blood Group: ${this.str(data.bloodGroup) || 'N/A'}`;
     }
 
-    return `ℹ️ *License Read*\n\n👤 Name: ${name || 'N/A'}\n📋 License: ${lic || 'N/A'}\n📅 Expiry: ${this.str(data.expiryDate) || 'N/A'}\n\nDriver not found in system. Please add driver first.`;
+    const byPhone = await this.findDriverByWhatsAppPhone(senderPhone);
+    if (byPhone) {
+      const expiry = this.licenseExpiryFromData(data);
+      const dob = this.parseDate(this.str(data.dateOfBirth));
+      const newLic = lic || byPhone.licenseNumber;
+      await this.prisma.driver.update({
+        where: { id: byPhone.id },
+        data: {
+          name: name || byPhone.name,
+          licenseNumber: newLic,
+          licenseExpiry: expiry,
+          dateOfBirth: dob ?? byPhone.dateOfBirth,
+          bloodGroup: this.str(data.bloodGroup) ?? byPhone.bloodGroup,
+          address: this.str(data.address) ?? byPhone.address,
+        },
+      });
+      const nt = this.str(data.validityNT) || this.str(data.expiryDate);
+      return `✅ *License Updated (matched by phone)*\n\n👤 Driver: ${name || byPhone.name}\n📋 License: ${newLic || 'N/A'}\n📅 Validity(NT): ${nt || 'N/A'}`;
+    }
+
+    const phone = this.normalizePhoneForDriver(senderPhone);
+    const licenseNumber =
+      lic || `WA-OCR-${phone.replace(/\D/g, '').slice(-10) || Date.now()}`;
+    const licenseExpiry = this.licenseExpiryFromData(data);
+    driver = await this.prisma.driver.create({
+      data: {
+        name: name || 'Unknown',
+        licenseNumber: licenseNumber.slice(0, 30),
+        licenseExpiry,
+        dateOfBirth: this.parseDate(this.str(data.dateOfBirth)),
+        phone: phone.slice(0, 20),
+        status: 'AVAILABLE',
+        address: this.str(data.address) || null,
+        bloodGroup: this.str(data.bloodGroup) || null,
+      },
+    });
+    const nt = this.str(data.validityNT) || this.str(data.expiryDate);
+    return `✅ *New Driver Created from License*\n\n👤 Name: ${driver.name}\n📋 License: ${driver.licenseNumber}\n📅 DOB: ${this.str(data.dateOfBirth) || 'N/A'}\n📅 Validity(NT): ${nt || 'N/A'}\n🩸 Blood: ${this.str(data.bloodGroup) || 'N/A'}\n📍 Address: ${this.str(data.address) || 'N/A'}`;
   }
 
   private async processFuel(
@@ -172,9 +243,11 @@ export class DataProcessorService {
       return '❌ Vehicle number not found on fuel receipt.';
     }
 
-    const vehicle = await this.findVehicleByNumber(vehicleNumber);
+    let vehicle = await this.findVehicleByNumber(vehicleNumber);
     if (!vehicle) {
-      return `❌ Vehicle ${vehicleNumber} not found. Please add vehicle first.`;
+      vehicle = await this.prisma.vehicle.create({
+        data: this.stubVehicleCreate(vehicleNumber, {}),
+      });
     }
 
     const driver = await this.findDriverByWhatsAppPhone(senderPhone);
@@ -225,17 +298,104 @@ export class DataProcessorService {
 
     const vehicleNumber = this.str(data.vehicleNumber);
     if (vehicleNumber) {
-      const vehicle = await this.findVehicleByNumber(vehicleNumber);
-      if (vehicle) {
-        await this.prisma.vehicle.update({
-          where: { id: vehicle.id },
-          data: { currentKm: reading },
+      let vehicle = await this.findVehicleByNumber(vehicleNumber);
+      if (!vehicle) {
+        vehicle = await this.prisma.vehicle.create({
+          data: this.stubVehicleCreate(vehicleNumber, {
+            currentKm: reading,
+          }),
         });
-        return `✅ *Odometer Updated*\n\n🚛 Vehicle: ${vehicleNumber}\n📊 Reading: ${reading} km`;
+        return `✅ *New Vehicle + Odometer Created*\n\n🚛 Vehicle: ${vehicleNumber}\n📊 KM: ${reading}`;
       }
+      await this.prisma.vehicle.update({
+        where: { id: vehicle.id },
+        data: { currentKm: reading },
+      });
+      return `✅ *Odometer Updated*\n\n🚛 Vehicle: ${vehicleNumber}\n📊 Reading: ${reading} km`;
     }
 
     return `ℹ️ *Odometer Read*\n\n📊 Reading: ${reading} km\n\nCould not match to a vehicle. Please reply with vehicle number.`;
+  }
+
+  /** Prisma Vehicle requires type, make, model, year, regNumber; regNumber max 20 chars. */
+  private stubVehicleCreate(
+    regDisplay: string,
+    extra: {
+      pucNumber?: string | null;
+      pucIssueDate?: Date | null;
+      pucExpiryDate?: Date | null;
+      insurancePolicyNumber?: string | null;
+      insuranceCompany?: string | null;
+      insuranceStartDate?: Date | null;
+      insuranceExpiryDate?: Date | null;
+      insuranceType?: string | null;
+      make?: string;
+      model?: string;
+      color?: string | null;
+      engineNumber?: string | null;
+      chassisNumber?: string | null;
+      fuelType?: FuelType;
+      ownerName?: string | null;
+      registrationDate?: Date | null;
+      year?: number;
+      currentKm?: number;
+    } = {},
+  ) {
+    const regNumber = this.normalizeRegNumber(regDisplay);
+    return {
+      regNumber,
+      type: 'TRUCK' as const,
+      make: extra.make ?? 'Unknown',
+      model: extra.model ?? 'Unknown',
+      year: extra.year ?? new Date().getFullYear(),
+      fuelType: extra.fuelType ?? ('DIESEL' as FuelType),
+      status: 'ACTIVE' as const,
+      currentKm: extra.currentKm ?? 0,
+      pucNumber: extra.pucNumber,
+      pucIssueDate: extra.pucIssueDate,
+      pucExpiryDate: extra.pucExpiryDate,
+      insurancePolicyNumber: extra.insurancePolicyNumber,
+      insuranceCompany: extra.insuranceCompany,
+      insuranceStartDate: extra.insuranceStartDate,
+      insuranceExpiryDate: extra.insuranceExpiryDate,
+      insuranceType: extra.insuranceType,
+      color: extra.color,
+      engineNumber: extra.engineNumber,
+      chassisNumber: extra.chassisNumber,
+      ownerName: extra.ownerName,
+      registrationDate: extra.registrationDate,
+    };
+  }
+
+  private normalizeRegNumber(reg: string): string {
+    const cleaned = reg.replace(/[\s-]/g, '').toUpperCase();
+    return cleaned.slice(0, 20) || `X${Date.now().toString(36).toUpperCase()}`.slice(0, 20);
+  }
+
+  private normalizePhoneForDriver(from: string): string {
+    const raw = from.replace(/^whatsapp:/i, '').trim();
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length >= 10) return digits.slice(-10);
+    return digits.length > 0 ? digits : String(Date.now()).slice(-10);
+  }
+
+  private licenseExpiryFromData(data: Record<string, unknown>): Date {
+    return (
+      this.parseDate(this.str(data.validityNT)) ||
+      this.parseDate(this.str(data.expiryDate)) ||
+      new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+    );
+  }
+
+  private yearFromRcData(data: Record<string, unknown>): number {
+    const d = this.parseDate(this.str(data.registrationDate));
+    if (d) {
+      const y = d.getFullYear();
+      if (!isNaN(y) && y >= 1980 && y <= new Date().getFullYear() + 1) {
+        return y;
+      }
+    }
+    return new Date().getFullYear();
   }
 
   private async findVehicleByNumber(regNumber: string) {
