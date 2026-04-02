@@ -53,6 +53,8 @@ For Insurance:
 For RC Book (paper certificate OR mParivahan/Vahan app screenshot):
 {"type": "RC_BOOK", "vehicleNumber": "", "ownerName": "", "registeringAuthority": "", "vehicleClass": "", "fuelType": "", "emissionNorm": "", "vehicleAge": "", "hypothecated": "", "registrationDate": "DD/MM/YYYY", "fitnessValidUpto": "DD/MM/YYYY", "taxValidUpto": "", "insuranceValidUpto": "DD/MM/YYYY", "puccValidUpto": "DD/MM/YYYY", "permitValidUpto": "DD/MM/YYYY", "make": "", "model": "", "color": "", "engineNumber": "", "chassisNumber": "", "bodyType": "", "seatingCapacity": 0, "grossWeight": 0, "ownerAddress": ""}
 
+If BOTH sides of the RC Book are visible in one image (front and back), extract ALL data from BOTH sides. Front side typically has: vehicle number, owner name, registration date, engine number, chassis number, make, model, fuel type, color, body type. Back side typically has: fitness validity, tax validity, insurance validity, PUC validity, permit validity, address, hypothecation details. Combine all data into one JSON response.
+
 IMPORTANT for RC/mParivahan: mParivahan screenshots show dates like '05-Apr-2024' or '26-Mar-2026'. Convert ALL dates in your JSON output to DD/MM/YYYY format (e.g. '05-Apr-2024' -> '05/04/2024', '26-Mar-2026' -> '26/03/2026'). If a field shows 'LTT' or similar codes instead of a date, output that code as a string (not null).
 
 For Driver License:

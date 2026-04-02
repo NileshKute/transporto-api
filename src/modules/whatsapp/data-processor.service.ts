@@ -63,16 +63,33 @@ export class DataProcessorService {
       return `✅ *New Vehicle + PUC Created*\n\n🚛 Vehicle: ${vehicleNumber}\n📋 PUC: ${this.str(data.pucNumber) || 'N/A'}\n📅 Expiry: ${this.str(data.expiryDate) || 'N/A'}\n${data.emissionResult ? '🔬 Result: ' + String(data.emissionResult) : ''}`;
     }
 
-    await this.prisma.vehicle.update({
-      where: { id: vehicle.id },
-      data: {
-        pucNumber: this.str(data.pucNumber) || null,
-        pucIssueDate: this.parseDate(this.str(data.issueDate)),
-        pucExpiryDate: this.parseDate(this.str(data.expiryDate)),
-      },
-    });
+    const newData: Record<string, unknown> = {
+      pucNumber: this.str(data.pucNumber) || null,
+      pucIssueDate: this.parseDate(this.str(data.issueDate)),
+      pucExpiryDate: this.parseDate(this.str(data.expiryDate)),
+    };
+    const smartUpdate = this.buildSmartUpdate(
+      vehicle as unknown as Record<string, unknown>,
+      newData,
+    );
+    const exp = this.parseDate(this.str(data.expiryDate));
+    if (exp) smartUpdate.pucExpiryDate = exp;
+    const pn = this.str(data.pucNumber);
+    if (pn) smartUpdate.pucNumber = pn;
 
-    return `✅ *PUC Updated*\n\n🚛 Vehicle: ${vehicleNumber}\n📋 PUC No: ${this.str(data.pucNumber) || 'N/A'}\n📅 Expiry: ${this.str(data.expiryDate) || 'N/A'}\n${data.emissionResult ? '🔬 Result: ' + String(data.emissionResult) : ''}`;
+    if (Object.keys(smartUpdate).length > 0) {
+      await this.prisma.vehicle.update({
+        where: { id: vehicle.id },
+        data: smartUpdate,
+      });
+    }
+
+    const updatedKeys = Object.keys(smartUpdate);
+    const fieldsLine =
+      updatedKeys.length > 0
+        ? `\n📝 Updated: ${updatedKeys.join(', ')}`
+        : '\n📝 No PUC fields changed (no new data).';
+    return `✅ *PUC Updated*\n\n🚛 Vehicle: ${vehicleNumber}\n📋 PUC No: ${this.str(data.pucNumber) || 'N/A'}\n📅 Expiry: ${this.str(data.expiryDate) || 'N/A'}${fieldsLine}\n${data.emissionResult ? '🔬 Result: ' + String(data.emissionResult) : ''}`;
   }
 
   private async processInsurance(
@@ -97,18 +114,27 @@ export class DataProcessorService {
       return `✅ *New Vehicle + Insurance Created*\n\n🚛 Vehicle: ${vehicleNumber}\n📋 Policy: ${this.str(data.policyNumber) || 'N/A'}\n🏢 Company: ${this.str(data.company) || 'N/A'}\n📅 Expiry: ${this.str(data.expiryDate) || 'N/A'}\n💰 Premium: ₹${data.premium ?? 'N/A'}`;
     }
 
-    await this.prisma.vehicle.update({
-      where: { id: vehicle.id },
-      data: {
-        insurancePolicyNumber: this.str(data.policyNumber) || null,
-        insuranceCompany: this.str(data.company) || null,
-        insuranceStartDate: this.parseDate(this.str(data.startDate)),
-        insuranceExpiryDate: this.parseDate(this.str(data.expiryDate)),
-        insuranceType: this.str(data.insuranceType) || null,
-      },
-    });
+    const newData: Record<string, unknown> = {
+      insurancePolicyNumber: this.str(data.policyNumber) ?? null,
+      insuranceCompany: this.str(data.company) ?? null,
+      insuranceStartDate: this.parseDate(this.str(data.startDate)),
+      insuranceExpiryDate: this.parseDate(this.str(data.expiryDate)),
+      insuranceType: this.str(data.insuranceType) ?? null,
+    };
+    const update: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(newData)) {
+      if (v !== null && v !== undefined && v !== '') {
+        update[k] = v;
+      }
+    }
+    if (Object.keys(update).length > 0) {
+      await this.prisma.vehicle.update({
+        where: { id: vehicle.id },
+        data: update,
+      });
+    }
 
-    return `✅ *Insurance Updated*\n\n🚛 Vehicle: ${vehicleNumber}\n📋 Policy: ${this.str(data.policyNumber) || 'N/A'}\n🏢 Company: ${this.str(data.company) || 'N/A'}\n📅 Expiry: ${this.str(data.expiryDate) || 'N/A'}\n💰 Premium: ₹${data.premium ?? 'N/A'}`;
+    return `✅ *Insurance Updated*\n\n🚛 Vehicle: ${vehicleNumber}\n📋 Policy: ${this.str(data.policyNumber) || 'N/A'}\n🏢 Company: ${this.str(data.company) || 'N/A'}\n📅 Expiry: ${this.str(data.expiryDate) || 'N/A'}\n💰 Premium: ₹${data.premium ?? 'N/A'}\n\nPolicy details were refreshed from this document.`;
   }
 
   private async processRcBook(data: Record<string, unknown>): Promise<string> {
@@ -118,15 +144,21 @@ export class DataProcessorService {
     }
 
     const vehicle = await this.findVehicleByNumber(vehicleNumber);
-    const updateData = this.buildRcBookUpdatePayload(data);
 
     if (vehicle) {
-      if (Object.keys(updateData).length > 0) {
+      const fullNew = this.buildRcBookUpdatePayload(data);
+      const smartUpdate = this.buildSmartUpdate(
+        vehicle as unknown as Record<string, unknown>,
+        fullNew,
+      );
+      if (Object.keys(smartUpdate).length > 0) {
         await this.prisma.vehicle.update({
           where: { id: vehicle.id },
-          data: updateData,
+          data: smartUpdate,
         });
+        return `✅ *Vehicle Updated*\n\n🚛 ${vehicleNumber}\n📝 Updated: ${Object.keys(smartUpdate).join(', ')}\n\nPreviously filled fields were kept unchanged.`;
       }
+      return `ℹ️ *No New Info*\n\n🚛 ${vehicleNumber}\nAll fields already filled. No update needed.`;
     } else {
       const mappedType =
         this.mapVehicleClassToType(this.str(data.vehicleClass)) ?? 'TRUCK';
@@ -158,10 +190,7 @@ export class DataProcessorService {
       });
     }
 
-    const existed = !!vehicle;
-    let response = existed
-      ? `✅ *Vehicle Updated from RC/mParivahan*`
-      : `✅ *New Vehicle Created from RC/mParivahan*`;
+    let response = `✅ *New Vehicle Created from RC/mParivahan*`;
     response += `\n\n🚛 Vehicle: ${vehicleNumber}`;
     const vClass = this.str(data.vehicleClass);
     if (vClass) response += `\n📋 Class: ${vClass}`;
@@ -280,40 +309,67 @@ export class DataProcessorService {
     }
 
     if (driver) {
-      const expiry = this.licenseExpiryFromData(data);
+      const newData: Record<string, unknown> = {};
+      if (lic) newData.licenseNumber = lic;
+      if (name) newData.name = name;
       const dob = this.parseDate(this.str(data.dateOfBirth));
-      await this.prisma.driver.update({
-        where: { id: driver.id },
-        data: {
-          licenseNumber: lic || driver.licenseNumber,
-          licenseExpiry: expiry,
-          dateOfBirth: dob ?? driver.dateOfBirth,
-          bloodGroup: this.str(data.bloodGroup) ?? driver.bloodGroup,
-          address: this.str(data.address) ?? driver.address,
-        },
-      });
+      if (dob) newData.dateOfBirth = dob;
+      const addr = this.str(data.address);
+      if (addr) newData.address = addr;
+      const bg = this.str(data.bloodGroup);
+      if (bg) newData.bloodGroup = bg;
+
+      const smartUpdate = this.buildSmartUpdate(
+        driver as unknown as Record<string, unknown>,
+        newData,
+      );
+      if (this.str(data.validityNT) || this.str(data.expiryDate)) {
+        smartUpdate.licenseExpiry = this.licenseExpiryFromData(data);
+      }
+
+      if (Object.keys(smartUpdate).length > 0) {
+        await this.prisma.driver.update({
+          where: { id: driver.id },
+          data: smartUpdate,
+        });
+      }
+
       const nt = this.str(data.validityNT) || this.str(data.expiryDate);
-      return `✅ *License Updated*\n\n👤 Driver: ${driver.name}\n📋 License: ${lic || 'N/A'}\n📅 Validity(NT): ${nt || 'N/A'}\n🩸 Blood Group: ${this.str(data.bloodGroup) || 'N/A'}`;
+      const updatedList = Object.keys(smartUpdate).join(', ');
+      return `✅ *License Updated*\n\n👤 Driver: ${driver.name}\n📋 License: ${lic || driver.licenseNumber}\n📅 Validity(NT): ${nt || 'N/A'}\n🩸 Blood Group: ${this.str(data.bloodGroup) || 'N/A'}${updatedList ? `\n📝 Updated: ${updatedList}` : '\n📝 No field changes (expiry unchanged or no OCR dates).'}`;
     }
 
     const byPhone = await this.findDriverByWhatsAppPhone(senderPhone);
     if (byPhone) {
-      const expiry = this.licenseExpiryFromData(data);
+      const newData: Record<string, unknown> = {};
+      if (lic) newData.licenseNumber = lic;
+      if (name) newData.name = name;
       const dob = this.parseDate(this.str(data.dateOfBirth));
-      const newLic = lic || byPhone.licenseNumber;
-      await this.prisma.driver.update({
-        where: { id: byPhone.id },
-        data: {
-          name: name || byPhone.name,
-          licenseNumber: newLic,
-          licenseExpiry: expiry,
-          dateOfBirth: dob ?? byPhone.dateOfBirth,
-          bloodGroup: this.str(data.bloodGroup) ?? byPhone.bloodGroup,
-          address: this.str(data.address) ?? byPhone.address,
-        },
-      });
+      if (dob) newData.dateOfBirth = dob;
+      const addr = this.str(data.address);
+      if (addr) newData.address = addr;
+      const bg = this.str(data.bloodGroup);
+      if (bg) newData.bloodGroup = bg;
+
+      const smartUpdate = this.buildSmartUpdate(
+        byPhone as unknown as Record<string, unknown>,
+        newData,
+      );
+      if (this.str(data.validityNT) || this.str(data.expiryDate)) {
+        smartUpdate.licenseExpiry = this.licenseExpiryFromData(data);
+      }
+
+      if (Object.keys(smartUpdate).length > 0) {
+        await this.prisma.driver.update({
+          where: { id: byPhone.id },
+          data: smartUpdate,
+        });
+      }
+
       const nt = this.str(data.validityNT) || this.str(data.expiryDate);
-      return `✅ *License Updated (matched by phone)*\n\n👤 Driver: ${name || byPhone.name}\n📋 License: ${newLic || 'N/A'}\n📅 Validity(NT): ${nt || 'N/A'}`;
+      const newLic = lic || byPhone.licenseNumber;
+      const updatedList = Object.keys(smartUpdate).join(', ');
+      return `✅ *License Updated (matched by phone)*\n\n👤 Driver: ${name || byPhone.name}\n📋 License: ${newLic || 'N/A'}\n📅 Validity(NT): ${nt || 'N/A'}${updatedList ? `\n📝 Updated: ${updatedList}` : '\n📝 No field changes (expiry unchanged or no OCR dates).'}`;
     }
 
     const phone = this.normalizePhoneForDriver(senderPhone);
@@ -625,6 +681,64 @@ export class DataProcessorService {
     if (v == null) return null;
     const s = String(v).trim();
     return s.length ? s : null;
+  }
+
+  /** True if DB value is empty/placeholder — safe to fill from OCR. */
+  private isExistingFieldEmptyForMerge(existingValue: unknown): boolean {
+    if (existingValue === null || existingValue === undefined) return true;
+    if (existingValue === '') return true;
+    if (typeof existingValue === 'string') {
+      const t = existingValue.trim();
+      if (!t) return true;
+      const u = t.toUpperCase();
+      if (u === 'UNKNOWN' || u === 'N/A') return true;
+    }
+    if (typeof existingValue === 'number' && existingValue === 0) return true;
+    if (existingValue instanceof Date) {
+      return isNaN(existingValue.getTime());
+    }
+    return false;
+  }
+
+  /**
+   * Merge OCR into DB only where existing is missing/empty/Unknown/N/A/0.
+   * Caller may then force specific keys (e.g. PUC expiry, license expiry).
+   */
+  private buildSmartUpdate(
+    existingRecord: Record<string, unknown>,
+    newData: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const update: Record<string, unknown> = {};
+
+    for (const [key, newValue] of Object.entries(newData)) {
+      if (
+        newValue === null ||
+        newValue === undefined ||
+        newValue === '' ||
+        newValue === 'N/A' ||
+        (typeof newValue === 'string' &&
+          newValue.trim().toUpperCase() === 'N/A')
+      ) {
+        continue;
+      }
+      if (
+        typeof newValue === 'string' &&
+        newValue.trim().toUpperCase() === 'UNKNOWN'
+      ) {
+        continue;
+      }
+      if (newValue instanceof Date && isNaN(newValue.getTime())) {
+        continue;
+      }
+
+      const existingValue = existingRecord[key];
+      if (!this.isExistingFieldEmptyForMerge(existingValue)) {
+        continue;
+      }
+      update[key] = newValue;
+    }
+
+    return update;
   }
 
   private num(v: unknown): number {
