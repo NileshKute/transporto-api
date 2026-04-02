@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { FuelType } from '@prisma/client';
+import { FuelType, VehicleType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -117,42 +117,144 @@ export class DataProcessorService {
       return '❌ Vehicle number not found in RC. Please send clearer photo.';
     }
 
-    let vehicle = await this.findVehicleByNumber(vehicleNumber);
+    const vehicle = await this.findVehicleByNumber(vehicleNumber);
+    const updateData = this.buildRcBookUpdatePayload(data);
 
     if (vehicle) {
-      await this.prisma.vehicle.update({
-        where: { id: vehicle.id },
-        data: {
-          make: this.str(data.make) || vehicle.make,
-          model: this.str(data.model) || vehicle.model,
-          color: this.str(data.color) ?? vehicle.color,
-          engineNumber: this.str(data.engineNumber) ?? vehicle.engineNumber,
-          chassisNumber: this.str(data.chassisNumber) ?? vehicle.chassisNumber,
-          fuelType:
-            this.mapVehicleFuelType(data.fuelType) ?? vehicle.fuelType,
-          ownerName: this.str(data.ownerName) ?? vehicle.ownerName,
-          registrationDate:
-            this.parseDate(this.str(data.registrationDate)) ??
-            vehicle.registrationDate,
-        },
+      if (Object.keys(updateData).length > 0) {
+        await this.prisma.vehicle.update({
+          where: { id: vehicle.id },
+          data: updateData,
+        });
+      }
+    } else {
+      const mappedType =
+        this.mapVehicleClassToType(this.str(data.vehicleClass)) ?? 'TRUCK';
+      const fuel =
+        this.mapVehicleFuelType(data.fuelType) ?? ('DIESEL' as FuelType);
+      await this.prisma.vehicle.create({
+        data: this.stubVehicleCreate(vehicleNumber, {
+          type: mappedType,
+          make: this.rcStr(data.make) || 'Unknown',
+          model: this.rcStr(data.model) || 'Unknown',
+          year:
+            this.extractYear(this.str(data.registrationDate)) ??
+            new Date().getFullYear(),
+          fuelType: fuel,
+          color: this.rcStr(data.color) || null,
+          engineNumber: this.rcStr(data.engineNumber) || null,
+          chassisNumber: this.rcStr(data.chassisNumber) || null,
+          ownerName: this.str(data.ownerName) || null,
+          registrationDate: this.parseDate(this.str(data.registrationDate)),
+          fitnessExpiryDate: this.parseDate(this.str(data.fitnessValidUpto)),
+          insuranceExpiryDate: this.parseDate(
+            this.str(data.insuranceValidUpto),
+          ),
+          pucExpiryDate: this.parseDate(this.str(data.puccValidUpto)),
+          permitExpiryDate: this.parseDate(this.str(data.permitValidUpto)),
+          taxExpiryDate: this.parseDate(this.str(data.taxValidUpto)),
+          taxReceiptNumber: this.taxValidUptoAsCode(data),
+        }),
       });
-      return `✅ *RC Book Updated*\n\n🚛 Vehicle: ${vehicleNumber}\n🏭 Make: ${this.str(data.make) || 'N/A'}\n📋 Model: ${this.str(data.model) || 'N/A'}\n🎨 Color: ${this.str(data.color) || 'N/A'}\n🔧 Engine: ${this.str(data.engineNumber) || 'N/A'}`;
     }
 
-    vehicle = await this.prisma.vehicle.create({
-      data: this.stubVehicleCreate(vehicleNumber, {
-        make: this.str(data.make) || 'Unknown',
-        model: this.str(data.model) || 'Unknown',
-        color: this.str(data.color) || null,
-        engineNumber: this.str(data.engineNumber) || null,
-        chassisNumber: this.str(data.chassisNumber) || null,
-        fuelType: this.mapVehicleFuelType(data.fuelType) ?? 'DIESEL',
-        ownerName: this.str(data.ownerName) || null,
-        registrationDate: this.parseDate(this.str(data.registrationDate)),
-        year: this.yearFromRcData(data),
-      }),
-    });
-    return `✅ *New Vehicle Created from RC*\n\n🚛 Vehicle: ${vehicleNumber}\n🏭 Make: ${this.str(data.make) || 'N/A'}\n📋 Model: ${this.str(data.model) || 'N/A'}\n🎨 Color: ${this.str(data.color) || 'N/A'}\n🔧 Engine: ${this.str(data.engineNumber) || 'N/A'}\n📐 Chassis: ${this.str(data.chassisNumber) || 'N/A'}`;
+    const existed = !!vehicle;
+    let response = existed
+      ? `✅ *Vehicle Updated from RC/mParivahan*`
+      : `✅ *New Vehicle Created from RC/mParivahan*`;
+    response += `\n\n🚛 Vehicle: ${vehicleNumber}`;
+    const vClass = this.str(data.vehicleClass);
+    if (vClass) response += `\n📋 Class: ${vClass}`;
+    const ft = this.str(data.fuelType);
+    if (ft) response += `\n⛽ Fuel: ${ft}`;
+    const rd = this.str(data.registrationDate);
+    if (rd) response += `\n📅 Reg Date: ${rd}`;
+    const fit = this.str(data.fitnessValidUpto);
+    if (fit) response += `\n🔧 Fitness: ${fit}`;
+    const ins = this.str(data.insuranceValidUpto);
+    if (ins) response += `\n🛡️ Insurance: ${ins}`;
+    const puc = this.str(data.puccValidUpto);
+    if (puc) response += `\n💨 PUC: ${puc}`;
+    const perm = this.str(data.permitValidUpto);
+    if (perm) response += `\n📄 Permit: ${perm}`;
+    return response;
+  }
+
+  /** RC field present and not placeholder "N/A". */
+  private rcStr(v: unknown): string | null {
+    const s = this.str(v);
+    if (!s || s.toUpperCase() === 'N/A') return null;
+    return s;
+  }
+
+  private buildRcBookUpdatePayload(
+    data: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const u: Record<string, unknown> = {};
+
+    const mk = this.rcStr(data.make);
+    if (mk) u.make = mk;
+    const md = this.rcStr(data.model);
+    if (md) u.model = md;
+    const col = this.rcStr(data.color);
+    if (col) u.color = col;
+    const eng = this.rcStr(data.engineNumber);
+    if (eng) u.engineNumber = eng;
+    const ch = this.rcStr(data.chassisNumber);
+    if (ch) u.chassisNumber = ch;
+
+    const fuel = this.mapVehicleFuelType(data.fuelType);
+    if (fuel) u.fuelType = fuel;
+
+    const owner = this.str(data.ownerName);
+    if (owner) u.ownerName = owner;
+
+    const regD = this.parseDate(this.str(data.registrationDate));
+    if (regD) u.registrationDate = regD;
+
+    const fitD = this.parseDate(this.str(data.fitnessValidUpto));
+    if (fitD) u.fitnessExpiryDate = fitD;
+
+    const insD = this.parseDate(this.str(data.insuranceValidUpto));
+    if (insD) u.insuranceExpiryDate = insD;
+
+    const pucD = this.parseDate(this.str(data.puccValidUpto));
+    if (pucD) u.pucExpiryDate = pucD;
+
+    const permD = this.parseDate(this.str(data.permitValidUpto));
+    if (permD) u.permitExpiryDate = permD;
+
+    const taxD = this.parseDate(this.str(data.taxValidUpto));
+    if (taxD) u.taxExpiryDate = taxD;
+    else {
+      const taxCode = this.taxValidUptoAsCode(data);
+      if (taxCode) u.taxReceiptNumber = taxCode;
+    }
+
+    const vt = this.mapVehicleClassToType(this.str(data.vehicleClass));
+    if (vt) u.type = vt;
+
+    return u;
+  }
+
+  private taxValidUptoAsCode(data: Record<string, unknown>): string | null {
+    const raw = this.str(data.taxValidUpto);
+    if (!raw) return null;
+    if (this.parseDate(raw)) return null;
+    return raw.slice(0, 50);
+  }
+
+  private mapVehicleClassToType(vehicleClass: string | null): VehicleType | null {
+    if (!vehicleClass) return null;
+    const low = vehicleClass.toLowerCase();
+    if (low.includes('bus')) return 'VAN';
+    if (low.includes('goods') || low.includes('truck')) return 'TRUCK';
+    return null;
+  }
+
+  private extractYear(dateStr: string | null | undefined): number | null {
+    const date = this.parseDate(dateStr);
+    return date ? date.getFullYear() : null;
   }
 
   private async processLicense(
@@ -339,12 +441,17 @@ export class DataProcessorService {
       registrationDate?: Date | null;
       year?: number;
       currentKm?: number;
+      type?: VehicleType;
+      fitnessExpiryDate?: Date | null;
+      permitExpiryDate?: Date | null;
+      taxExpiryDate?: Date | null;
+      taxReceiptNumber?: string | null;
     } = {},
   ) {
     const regNumber = this.normalizeRegNumber(regDisplay);
     return {
       regNumber,
-      type: 'TRUCK' as const,
+      type: extra.type ?? ('TRUCK' as VehicleType),
       make: extra.make ?? 'Unknown',
       model: extra.model ?? 'Unknown',
       year: extra.year ?? new Date().getFullYear(),
@@ -364,6 +471,10 @@ export class DataProcessorService {
       chassisNumber: extra.chassisNumber,
       ownerName: extra.ownerName,
       registrationDate: extra.registrationDate,
+      fitnessExpiryDate: extra.fitnessExpiryDate,
+      permitExpiryDate: extra.permitExpiryDate,
+      taxExpiryDate: extra.taxExpiryDate,
+      taxReceiptNumber: extra.taxReceiptNumber,
     };
   }
 
@@ -388,12 +499,9 @@ export class DataProcessorService {
   }
 
   private yearFromRcData(data: Record<string, unknown>): number {
-    const d = this.parseDate(this.str(data.registrationDate));
-    if (d) {
-      const y = d.getFullYear();
-      if (!isNaN(y) && y >= 1980 && y <= new Date().getFullYear() + 1) {
-        return y;
-      }
+    const y = this.extractYear(this.str(data.registrationDate));
+    if (y != null && y >= 1980 && y <= new Date().getFullYear() + 1) {
+      return y;
     }
     return new Date().getFullYear();
   }
@@ -446,17 +554,67 @@ export class DataProcessorService {
 
   private parseDate(dateStr: string | null | undefined): Date | null {
     if (!dateStr) return null;
+    const s = String(dateStr).trim();
+    if (!s) return null;
     try {
-      const parts = dateStr.trim().split(/[/\-]/);
+      const months: Record<string, number> = {
+        jan: 0,
+        feb: 1,
+        mar: 2,
+        apr: 3,
+        may: 4,
+        jun: 5,
+        jul: 6,
+        aug: 7,
+        sep: 8,
+        oct: 9,
+        nov: 10,
+        dec: 11,
+        january: 0,
+        february: 1,
+        march: 2,
+        april: 3,
+        june: 5,
+        july: 6,
+        august: 7,
+        september: 8,
+        october: 9,
+        november: 10,
+        december: 11,
+      };
+
+      const monMatch = s.match(
+        /^(\d{1,2})[\-\/]([A-Za-z]{3,9})[\-\/](\d{4})$/,
+      );
+      if (monMatch) {
+        const day = parseInt(monMatch[1], 10);
+        const monRaw = monMatch[2].toLowerCase();
+        const month =
+          months[monRaw] ?? months[monRaw.slice(0, 3)] ?? undefined;
+        const year = parseInt(monMatch[3], 10);
+        if (month !== undefined && !isNaN(day) && !isNaN(year)) {
+          return new Date(year, month, day);
+        }
+      }
+
+      const parts = s.split(/[/\-]/);
       if (parts.length === 3) {
         const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
+        const monthNum = parseInt(parts[1], 10);
         const year = parseInt(parts[2], 10);
-        if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
-        const fullYear = year < 100 ? 2000 + year : year;
-        return new Date(fullYear, month, day);
+        if (
+          !isNaN(day) &&
+          !isNaN(monthNum) &&
+          !isNaN(year) &&
+          monthNum >= 1 &&
+          monthNum <= 12
+        ) {
+          const fullYear = year < 100 ? 2000 + year : year;
+          return new Date(fullYear, monthNum - 1, day);
+        }
       }
-      const d = new Date(dateStr);
+
+      const d = new Date(s);
       return isNaN(d.getTime()) ? null : d;
     } catch {
       return null;

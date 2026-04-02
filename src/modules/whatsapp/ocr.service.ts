@@ -50,8 +50,10 @@ For PUC Certificate:
 For Insurance:
 {"type": "INSURANCE", "vehicleNumber": "", "policyNumber": "", "company": "", "insuredName": "", "startDate": "DD/MM/YYYY", "expiryDate": "DD/MM/YYYY", "premium": 0, "idvValue": 0, "insuranceType": "COMPREHENSIVE/THIRD_PARTY"}
 
-For RC Book (Registration Certificate):
-{"type": "RC_BOOK", "vehicleNumber": "", "ownerName": "", "ownerAddress": "", "make": "", "model": "", "fuelType": "", "engineNumber": "", "chassisNumber": "", "registrationDate": "DD/MM/YYYY", "color": "", "bodyType": "", "seatingCapacity": 0, "grossWeight": 0}
+For RC Book (paper certificate OR mParivahan/Vahan app screenshot):
+{"type": "RC_BOOK", "vehicleNumber": "", "ownerName": "", "registeringAuthority": "", "vehicleClass": "", "fuelType": "", "emissionNorm": "", "vehicleAge": "", "hypothecated": "", "registrationDate": "DD/MM/YYYY", "fitnessValidUpto": "DD/MM/YYYY", "taxValidUpto": "", "insuranceValidUpto": "DD/MM/YYYY", "puccValidUpto": "DD/MM/YYYY", "permitValidUpto": "DD/MM/YYYY", "make": "", "model": "", "color": "", "engineNumber": "", "chassisNumber": "", "bodyType": "", "seatingCapacity": 0, "grossWeight": 0, "ownerAddress": ""}
+
+IMPORTANT for RC/mParivahan: mParivahan screenshots show dates like '05-Apr-2024' or '26-Mar-2026'. Convert ALL dates in your JSON output to DD/MM/YYYY format (e.g. '05-Apr-2024' -> '05/04/2024', '26-Mar-2026' -> '26/03/2026'). If a field shows 'LTT' or similar codes instead of a date, output that code as a string (not null).
 
 For Driver License:
 {"type": "LICENSE", "licenseNumber": "", "name": "", "fatherName": "", "dateOfBirth": "DD/MM/YYYY", "address": "", "issueDate": "DD/MM/YYYY", "expiryDate": "DD/MM/YYYY", "validityNT": "DD/MM/YYYY", "validityTR": "DD/MM/YYYY", "vehicleClasses": "", "bloodGroup": ""}
