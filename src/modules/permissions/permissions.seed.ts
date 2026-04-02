@@ -64,6 +64,7 @@ export const DEFAULT_PERMISSION_GROUPS: Array<{
   { role: 'MANAGER', module: 'shifts', actions: ['view', 'create', 'edit'] },
   { role: 'MANAGER', module: 'whatsapp', actions: ['view', 'create'] },
   { role: 'MANAGER', module: 'driver-ledger', actions: ['view', 'create', 'edit', 'download'] },
+  { role: 'MANAGER', module: 'salary', actions: ['view', 'create'] },
 
   { role: 'ACCOUNTANT', module: 'clients', actions: ['view', 'create', 'edit'] },
   {
