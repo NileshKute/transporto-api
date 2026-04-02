@@ -1,6 +1,10 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
+import { JwtGlobalAuthGuard } from './common/guards/jwt-global.guard';
+import { PermissionGuard } from './common/guards/permission.guard';
+import { PermissionsModule } from './modules/permissions/permissions.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { DriversModule } from './modules/drivers/drivers.module';
 import { TripsModule } from './modules/trips/trips.module';
@@ -34,6 +38,11 @@ import { DriverLedgerModule } from './modules/driver-ledger/driver-ledger.module
     ClientModule,
     InvoiceModule,
     DriverLedgerModule,
+    PermissionsModule,
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtGlobalAuthGuard },
+    { provide: APP_GUARD, useClass: PermissionGuard },
   ],
 })
 export class AppModule {}

@@ -1,15 +1,15 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
-import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { InvoiceService } from './invoice.service';
 import { InvoicePdfService } from './invoice-pdf.service';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 
 @ApiTags('Invoices')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(RolesGuard)
 @Controller('invoices')
 export class InvoiceController {
   constructor(
@@ -18,6 +18,7 @@ export class InvoiceController {
   ) {}
 
   @Get()
+  @RequirePermission('invoices', 'view')
   @ApiOperation({ summary: 'List invoices with filters' })
   @ApiQuery({ name: 'clientId', required: false })
   @ApiQuery({ name: 'status', required: false })
@@ -30,40 +31,46 @@ export class InvoiceController {
   }
 
   @Get('next-number')
+  @RequirePermission('invoices', 'view')
   @ApiOperation({ summary: 'Get next invoice number for current financial year' })
   getNextNumber() {
     return this.invoiceService.getNextInvoiceNumber().then((n) => ({ invoiceNumber: n }));
   }
 
   @Get(':id')
+  @RequirePermission('invoices', 'view')
   @ApiOperation({ summary: 'Get invoice by ID with line items and deductions' })
   findOne(@Param('id') id: string) {
     return this.invoiceService.findOne(id);
   }
 
   @Post()
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('invoices', 'create')
   @ApiOperation({ summary: 'Create invoice with line items and deductions' })
   create(@Body() dto: any) {
     return this.invoiceService.create(dto);
   }
 
   @Put(':id')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('invoices', 'edit')
   @ApiOperation({ summary: 'Update invoice (DRAFT only)' })
   update(@Param('id') id: string, @Body() dto: any) {
     return this.invoiceService.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('invoices', 'delete')
   @ApiOperation({ summary: 'Delete invoice (DRAFT only)' })
   remove(@Param('id') id: string) {
     return this.invoiceService.remove(id);
   }
 
   @Post(':id/generate-pdf')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('invoices', 'download')
   @ApiOperation({ summary: 'Generate PDF in memory and stream it back' })
   async generatePdf(@Param('id') id: string, @Res() res: Response) {
     const invoice = await this.invoiceService.findOne(id);
@@ -78,7 +85,8 @@ export class InvoiceController {
   }
 
   @Put(':id/status')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('invoices', 'edit')
   @ApiOperation({ summary: 'Update invoice status' })
   @ApiBody({ schema: { type: 'object', properties: { status: { type: 'string', enum: ['SENT', 'PAID', 'PARTIAL', 'OVERDUE', 'CANCELLED'] } } } })
   updateStatus(@Param('id') id: string, @Body() body: { status: string }) {
@@ -86,7 +94,8 @@ export class InvoiceController {
   }
 
   @Put(':id/payment')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('invoices', 'edit')
   @ApiOperation({ summary: 'Record payment' })
   @ApiBody({ schema: { type: 'object', properties: { amount: { type: 'number' } } } })
   recordPayment(@Param('id') id: string, @Body() body: { amount: number }) {
@@ -94,7 +103,8 @@ export class InvoiceController {
   }
 
   @Post('auto-generate')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('invoices', 'create')
   @ApiOperation({ summary: 'Auto-generate draft invoice from trip data for a client and month' })
   @ApiBody({
     schema: {

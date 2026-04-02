@@ -12,7 +12,9 @@ datasource db {
 enum UserRole {
   SUPER_ADMIN
   ADMIN
+  CEO
   MANAGER
+  ACCOUNTANT
   DRIVER
   COLD_STORAGE_OPERATOR
   VIEWER
@@ -943,6 +945,34 @@ model Setting {
   label String @db.VarChar(100)
 
   @@map("settings")
+}
+
+model Permission {
+  id        String    @id @default(uuid())
+  role      String    @db.VarChar(32)
+  module    String    @db.VarChar(64)
+  action    String    @db.VarChar(32)
+  allowed   Boolean   @default(false)
+  ownOnly   Boolean   @default(false)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([role, module, action], name: "permission_role_module_action_key")
+  @@index([role])
+  @@index([module])
+  @@map("permissions")
+}
+
+model PermissionTemplate {
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  permissions Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("permission_templates")
 }
 
 model DriverLedger {

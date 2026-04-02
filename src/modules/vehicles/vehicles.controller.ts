@@ -1,18 +1,19 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { VehiclesService } from './vehicles.service';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 
 @ApiTags('Vehicles')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(RolesGuard)
 @Controller('vehicles')
 export class VehiclesController {
   constructor(private vehiclesService: VehiclesService) {}
 
   @Get()
+  @RequirePermission('vehicles', 'view')
   @ApiOperation({ summary: 'List all vehicles with filters and pagination' })
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'type', required: false })
@@ -24,12 +25,14 @@ export class VehiclesController {
   }
 
   @Get('stats')
+  @RequirePermission('vehicles', 'view')
   @ApiOperation({ summary: 'Get vehicle count statistics by status' })
   getStats() {
     return this.vehiclesService.getStats();
   }
 
   @Get('expiring-documents')
+  @RequirePermission('vehicles', 'view')
   @ApiOperation({ summary: 'Get vehicles with expiring or expired documents' })
   @ApiQuery({ name: 'days', required: false, description: 'Days ahead to check (default 30)' })
   getExpiringDocuments(@Query('days') days?: string) {
@@ -38,33 +41,38 @@ export class VehiclesController {
   }
 
   @Get('expiry-summary')
+  @RequirePermission('vehicles', 'view')
   @ApiOperation({ summary: 'Get expired/expiring document counts for dashboard' })
   getExpirySummary() {
     return this.vehiclesService.getExpirySummary();
   }
 
   @Get(':id')
+  @RequirePermission('vehicles', 'view')
   @ApiOperation({ summary: 'Get vehicle detail with trips, fuel, maintenance, insurance' })
   findOne(@Param('id') id: string) {
     return this.vehiclesService.findOne(id);
   }
 
   @Post()
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('vehicles', 'create')
   @ApiOperation({ summary: 'Create a new vehicle (Admin/Manager only)' })
   create(@Body() dto: any) {
     return this.vehiclesService.create(dto);
   }
 
   @Put(':id')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('vehicles', 'edit')
   @ApiOperation({ summary: 'Update vehicle (Admin/Manager only)' })
   update(@Param('id') id: string, @Body() dto: any) {
     return this.vehiclesService.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles('SUPER_ADMIN', 'ADMIN')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('vehicles', 'delete')
   @ApiOperation({ summary: 'Soft delete vehicle (Admin only)' })
   remove(@Param('id') id: string) {
     return this.vehiclesService.remove(id);

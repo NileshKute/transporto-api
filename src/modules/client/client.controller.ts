@@ -1,18 +1,19 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { ClientService } from './client.service';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 
 @ApiTags('Clients')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(RolesGuard)
 @Controller('clients')
 export class ClientController {
   constructor(private clientService: ClientService) {}
 
   @Get()
+  @RequirePermission('clients', 'view')
   @ApiOperation({ summary: 'List all clients with search and filters' })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'isActive', required: false })
@@ -23,34 +24,39 @@ export class ClientController {
   }
 
   @Get(':id')
+  @RequirePermission('clients', 'view')
   @ApiOperation({ summary: 'Get client by ID with vehicles' })
   findOne(@Param('id') id: string) {
     return this.clientService.findOne(id);
   }
 
   @Post()
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('clients', 'create')
   @ApiOperation({ summary: 'Create a new client' })
   create(@Body() dto: any) {
     return this.clientService.create(dto);
   }
 
   @Put(':id')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('clients', 'edit')
   @ApiOperation({ summary: 'Update a client' })
   update(@Param('id') id: string, @Body() dto: any) {
     return this.clientService.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('clients', 'delete')
   @ApiOperation({ summary: 'Soft delete client (set isActive=false)' })
   remove(@Param('id') id: string) {
     return this.clientService.remove(id);
   }
 
   @Post(':id/vehicles')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('clients', 'edit')
   @ApiOperation({ summary: 'Assign vehicle to client with billing type and rates' })
   @ApiBody({ schema: { type: 'object', properties: { vehicleId: { type: 'string' }, billingType: { type: 'string' }, monthlyRate: { type: 'number' }, tripRate: { type: 'number' }, route: { type: 'string' } } } })
   addVehicle(@Param('id') id: string, @Body() dto: any) {
@@ -58,7 +64,8 @@ export class ClientController {
   }
 
   @Delete(':clientId/vehicles/:vehicleId')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('clients', 'delete')
   @ApiOperation({ summary: 'Remove vehicle from client' })
   removeVehicle(@Param('clientId') clientId: string, @Param('vehicleId') vehicleId: string) {
     return this.clientService.removeVehicle(clientId, vehicleId);

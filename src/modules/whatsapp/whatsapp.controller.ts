@@ -8,11 +8,12 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { Response } from 'express';
 import { WhatsAppService } from './whatsapp.service';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { Public } from '../../common/decorators/public.decorator';
+import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 
 @ApiTags('WhatsApp')
 @Controller('whatsapp')
@@ -21,7 +22,8 @@ export class WhatsAppController {
 
   @Get()
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @UseGuards(RolesGuard)
+  @RequirePermission('whatsapp', 'view')
   @ApiOperation({ summary: 'List all WhatsApp messages with filters and pagination' })
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'parsedType', required: false })
@@ -31,6 +33,7 @@ export class WhatsAppController {
     return this.whatsappService.findAll(query);
   }
 
+  @Public()
   @Post('webhook')
   @ApiOperation({ summary: 'Twilio WhatsApp webhook — PUBLIC, no auth required' })
   async webhook(
@@ -54,7 +57,8 @@ export class WhatsAppController {
 
   @Post('send')
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @UseGuards(RolesGuard)
+  @RequirePermission('whatsapp', 'create')
   @ApiOperation({ summary: 'Send WhatsApp message to a driver (outbound via Twilio)' })
   @ApiBody({
     schema: {

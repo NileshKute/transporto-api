@@ -54,6 +54,7 @@ async function bootstrap() {
     .addTag('WhatsApp', 'WhatsApp message integration')
     .addTag('Clients', 'Billing clients and vehicle assignments')
     .addTag('Invoices', 'Invoice generation and PDF')
+    .addTag('Permissions', 'Role-based access control matrix')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
