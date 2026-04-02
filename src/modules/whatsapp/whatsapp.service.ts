@@ -1,17 +1,22 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WhatsAppParserService, ParsedResult } from './whatsapp-parser.service';
+import { OcrService } from './ocr.service';
+import { DataProcessorService } from './data-processor.service';
 import * as Twilio from 'twilio';
 
 const CONFIDENCE_THRESHOLD = 0.7;
 
 @Injectable()
 export class WhatsAppService {
+  private readonly logger = new Logger(WhatsAppService.name);
   private twilioClient: InstanceType<typeof Twilio.Twilio> | null = null;
 
   constructor(
     private prisma: PrismaService,
     private parser: WhatsAppParserService,
+    private ocrService: OcrService,
+    private dataProcessor: DataProcessorService,
   ) {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -118,12 +123,26 @@ export class WhatsAppService {
     const twilioMessageSid = body.MessageSid || body.messageSid || null;
     const twilioStatus = body.SmsStatus || null;
     const mediaUrl = body.MediaUrl0 || null;
+    const numMedia = parseInt(String(body.NumMedia ?? body.numMedia ?? '0'), 10) || 0;
+    const mediaContentType0 =
+      String(body.MediaContentType0 || body.mediaContentType0 || '');
 
     const normalizedPhone = fromPhone.replace(/\D/g, '').slice(-10);
 
     const driver = await this.prisma.driver.findFirst({
-      where: { phone: { endsWith: normalizedPhone } },
+      where: { phone: { endsWith: normalizedPhone }, isDeleted: false },
     });
+
+    if (numMedia > 0 && mediaContentType0.startsWith('image/') && mediaUrl) {
+      return this.processInboundImageWebhook({
+        fromPhone,
+        messageText,
+        mediaUrl,
+        twilioMessageSid,
+        twilioStatus,
+        driver,
+      });
+    }
 
     const parsed: ParsedResult = this.parser.parse(messageText);
 
@@ -292,7 +311,7 @@ export class WhatsAppService {
         message: messageText,
         mediaUrl,
         parsedType: parsed.type,
-        parsedData: parsed.parsedData as any,
+        parsedData: parsed.parsedData as object,
         confidence: parsed.confidence,
         confidenceScore: parsed.confidence,
         status: 'PROCESSED',
@@ -352,5 +371,118 @@ export class WhatsAppService {
       sid: result.sid,
       status: result.status,
     };
+  }
+
+  private detectDocumentType(text: string): string | undefined {
+    const lower = (text || '').toLowerCase();
+    if (lower.includes('puc') || lower.includes('pollution')) return 'PUC';
+    if (lower.includes('insurance') || lower.includes('policy')) {
+      return 'INSURANCE';
+    }
+    if (lower.includes('rc') || lower.includes('registration')) return 'RC_BOOK';
+    if (
+      lower.includes('license') ||
+      lower.includes('licence') ||
+      lower.includes('dl')
+    ) {
+      return 'LICENSE';
+    }
+    if (
+      lower.includes('fuel') ||
+      lower.includes('diesel') ||
+      lower.includes('petrol') ||
+      lower.includes('receipt')
+    ) {
+      return 'FUEL';
+    }
+    if (
+      lower.includes('speed') ||
+      lower.includes('odometer') ||
+      lower.includes('km') ||
+      lower.includes('meter')
+    ) {
+      return 'SPEEDOMETER';
+    }
+    return undefined;
+  }
+
+  private async safeSendWhatsApp(
+    toWhatsApp: string,
+    body: string,
+    driverId?: string,
+  ): Promise<void> {
+    try {
+      await this.sendMessage({ to: toWhatsApp, body, driverId });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.logger.warn(`WhatsApp outbound failed: ${msg}`);
+    }
+  }
+
+  private async processInboundImageWebhook(opts: {
+    fromPhone: string;
+    messageText: string;
+    mediaUrl: string;
+    twilioMessageSid: string | null;
+    twilioStatus: string | null;
+    driver: { id: string } | null;
+  }): Promise<{ twiml: string }> {
+    const {
+      fromPhone,
+      messageText,
+      mediaUrl,
+      twilioMessageSid,
+      twilioStatus,
+      driver,
+    } = opts;
+
+    await this.safeSendWhatsApp(
+      fromPhone,
+      '🔍 Processing your document... Please wait.',
+      driver?.id,
+    );
+
+    let ocrResult: Record<string, unknown> = { type: 'ERROR', error: 'Unknown' };
+    let replyBody: string;
+
+    try {
+      const docType = this.detectDocumentType(messageText);
+      ocrResult = await this.ocrService.extractFromImage(mediaUrl, docType);
+      replyBody = await this.dataProcessor.processOcrResult(
+        ocrResult,
+        fromPhone,
+      );
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`WhatsApp OCR pipeline error: ${msg}`);
+      replyBody =
+        '❌ Error processing image. Please try again with a clearer photo.';
+      ocrResult = { type: 'ERROR', error: msg };
+    }
+
+    await this.safeSendWhatsApp(fromPhone, replyBody, driver?.id);
+
+    await this.prisma.whatsAppMessage.create({
+      data: {
+        driverId: driver?.id ?? null,
+        fromPhone,
+        direction: 'INBOUND',
+        message: messageText || '[image]',
+        mediaUrl,
+        parsedType:
+          typeof ocrResult.type === 'string' ? `OCR_${ocrResult.type}` : 'OCR',
+        parsedData: ocrResult as object,
+        confidence: 1,
+        confidenceScore: 1,
+        status: 'PROCESSED',
+        processedAt: new Date(),
+        twilioSid: twilioMessageSid,
+        twilioMessageSid,
+        twilioStatus,
+        autoReplyText: replyBody,
+      },
+    });
+
+    return { twiml: this.buildTwiMLResponse(undefined) };
   }
 }

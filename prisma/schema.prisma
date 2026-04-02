@@ -73,6 +73,7 @@ enum LoadStatus {
 enum EntrySource {
   MANUAL
   WHATSAPP
+  WHATSAPP_OCR
   MOBILE_APP
   AUTO_SENSOR
 }
