@@ -388,6 +388,16 @@ export class WhatsAppService {
       return 'LICENSE';
     }
     if (
+      lower.includes('maintenance') ||
+      lower.includes('service bill') ||
+      lower.includes('garage bill') ||
+      lower.includes('workshop') ||
+      (lower.includes('invoice') &&
+        (lower.includes('repair') || lower.includes('servic')))
+    ) {
+      return 'MAINTENANCE_BILL';
+    }
+    if (
       lower.includes('fuel') ||
       lower.includes('diesel') ||
       lower.includes('petrol') ||

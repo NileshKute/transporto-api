@@ -15,7 +15,7 @@ export class DataProcessorService {
         typeof ocrData?.error === 'string'
           ? ocrData.error
           : 'OCR failed';
-      return `❌ Could not read the document (${err}). Please try a clearer photo.\n\nSupported: PUC, Insurance, RC Book, License, Fuel Receipt, Speedometer`;
+      return `❌ Could not read the document (${err}). Please try a clearer photo.\n\nSupported: PUC, Insurance, RC Book, License, Fuel Receipt, Speedometer, Maintenance/Garage Bill`;
     }
 
     if (ocrData.type === 'UNKNOWN') {
@@ -36,6 +36,8 @@ export class DataProcessorService {
           return await this.processFuel(ocrData, senderPhone);
         case 'SPEEDOMETER':
           return await this.processSpeedometer(ocrData);
+        case 'MAINTENANCE_BILL':
+          return await this.processMaintenanceBill(ocrData);
         default:
           return `❌ Unknown document type: ${String(ocrData.type)}`;
       }
@@ -473,6 +475,100 @@ export class DataProcessorService {
     }
 
     return `ℹ️ *Odometer Read*\n\n📊 Reading: ${reading} km\n\nCould not match to a vehicle. Please reply with vehicle number.`;
+  }
+
+  private async processMaintenanceBill(
+    data: Record<string, unknown>,
+  ): Promise<string> {
+    const vehicleNumber = this.str(data.vehicleNumber);
+    if (!vehicleNumber) {
+      return '❌ Vehicle number not found on bill.';
+    }
+
+    let vehicle = await this.findVehicleByNumber(vehicleNumber);
+    if (!vehicle) {
+      vehicle = await this.prisma.vehicle.create({
+        data: this.stubVehicleCreate(vehicleNumber, {}),
+      });
+    }
+
+    const reeferKeywords = [
+      'compressor',
+      'refrigerant',
+      'thermostat',
+      'condenser',
+      'evaporator',
+      'reefer',
+      'cooling',
+      'freezer',
+    ];
+    const blob = [
+      this.str(data.description) || '',
+      this.str(data.partsUsed) || '',
+      this.str(data.serviceType) || '',
+    ]
+      .join(' ')
+      .toLowerCase();
+    const isReefer = reeferKeywords.some((k) => blob.includes(k));
+    const category = isReefer ? 'REEFER' : 'TRUCK';
+
+    const typeName = this.str(data.serviceType);
+    let maintenanceType = typeName
+      ? await this.prisma.maintCatalog.findFirst({
+          where: {
+            category,
+            isActive: true,
+            name: { contains: typeName, mode: 'insensitive' },
+          },
+        })
+      : null;
+
+    if (!maintenanceType) {
+      const otherName = category === 'REEFER' ? 'Other (Reefer)' : 'Other (Truck)';
+      maintenanceType = await this.prisma.maintCatalog.findFirst({
+        where: {
+          category,
+          isActive: true,
+          name: otherName,
+        },
+      });
+    }
+
+    if (!maintenanceType) {
+      return '❌ Maintenance types are not set up yet. Open the app once or contact admin to seed the maintenance catalog.';
+    }
+
+    const labor = this.num(data.laborCost);
+    const parts = this.num(data.partsCost);
+    let total = this.num(data.totalCost);
+    if (total <= 0 && (labor > 0 || parts > 0)) {
+      total = labor + parts;
+    }
+    if (total <= 0) {
+      total = labor + parts;
+    }
+
+    await this.prisma.vehicleMaintRecord.create({
+      data: {
+        vehicleId: vehicle.id,
+        typeId: maintenanceType.id,
+        category,
+        date: this.parseDate(this.str(data.date)) ?? new Date(),
+        description: this.str(data.description),
+        partsUsed: this.str(data.partsUsed),
+        laborCost: labor,
+        partsCost: parts,
+        totalCost: total,
+        odometerKm: this.int(data.odometerKm),
+        garageName: this.str(data.garageName),
+        garageContact: this.str(data.garageContact),
+        billNumber: this.str(data.billNumber),
+        source: 'WHATSAPP_OCR',
+      },
+    });
+
+    const svc = typeName || maintenanceType.name;
+    return `✅ *Maintenance Record Created*\n\n🚛 Vehicle: ${vehicleNumber}\n${isReefer ? '❄️' : '🔧'} Category: ${category}\n📋 Type: ${svc}\n💰 Total: ₹${total || '?'}\n🏪 Garage: ${this.str(data.garageName) || 'N/A'}\n📅 Date: ${this.str(data.date) || 'Today'}`;
   }
 
   /** Prisma Vehicle requires type, make, model, year, regNumber; regNumber max 20 chars. */

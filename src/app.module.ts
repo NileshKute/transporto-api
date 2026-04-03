@@ -20,6 +20,7 @@ import { ClientModule } from './modules/client/client.module';
 import { InvoiceModule } from './modules/invoice/invoice.module';
 import { DriverLedgerModule } from './modules/driver-ledger/driver-ledger.module';
 import { BpclModule } from './modules/bpcl/bpcl.module';
+import { VehicleMaintenanceModule } from './modules/vehicle-maintenance/vehicle-maintenance.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { BpclModule } from './modules/bpcl/bpcl.module';
     InvoiceModule,
     DriverLedgerModule,
     BpclModule,
+    VehicleMaintenanceModule,
     PermissionsModule,
   ],
   providers: [

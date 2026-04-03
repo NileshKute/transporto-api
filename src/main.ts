@@ -48,6 +48,7 @@ async function bootstrap() {
     .addTag('Fuel', 'Fuel entry management')
     .addTag('BPCL SmartFleet', 'BPCL Excel import and fleet card tagging')
     .addTag('Maintenance', 'Vehicle maintenance records')
+    .addTag('Vehicle Maintenance Book', 'Truck/reefer service log and configurable types')
     .addTag('Emergencies', 'Emergency reporting and management')
     .addTag('Insurance', 'Insurance policy management')
     .addTag('Cold Storage', 'Cold storage unit monitoring')

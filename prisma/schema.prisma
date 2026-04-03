@@ -364,7 +364,8 @@ model Vehicle {
 
   trips           Trip[]
   fuelEntries     FuelEntry[]
-  maintenance     Maintenance[]
+  maintenance          Maintenance[]
+  vehicleMaintRecords  VehicleMaintRecord[]
   emergencies     Emergency[]
   insurance       Insurance[]
   shifts          Shift[]
@@ -592,6 +593,55 @@ model Maintenance {
   @@index([status])
   @@index([nextDueDate])
   @@map("maintenance")
+}
+
+/// Configurable maintenance kinds for truck vs reefer (separate from enum MaintenanceType on legacy Maintenance model)
+model MaintCatalog {
+  id        String                @id @default(uuid())
+  name      String
+  category  String
+  icon      String?
+  isActive  Boolean               @default(true)
+  sortOrder Int                   @default(0)
+  records   VehicleMaintRecord[]
+  createdAt DateTime              @default(now())
+
+  @@unique([name, category])
+  @@map("maintenance_types")
+}
+
+model VehicleMaintRecord {
+  id               String       @id @default(uuid())
+  vehicleId        String
+  vehicle          Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  typeId           String
+  type             MaintCatalog @relation(fields: [typeId], references: [id])
+  category         String
+  date             DateTime
+  description      String?      @db.Text
+  partsUsed        String?      @db.Text
+  laborCost        Float        @default(0)
+  partsCost        Float        @default(0)
+  totalCost        Float        @default(0)
+  odometerKm       Int?
+  runningHours     Int?
+  garageName       String?
+  garageContact    String?
+  billNumber       String?
+  billPhotoUrl     String?
+  nextServiceDate  DateTime?
+  nextServiceKm    Int?
+  nextServiceHours Int?
+  notes            String?      @db.Text
+  source           String       @default("MANUAL")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([vehicleId])
+  @@index([date])
+  @@index([category])
+  @@index([typeId])
+  @@map("maintenance_records")
 }
 
 model Emergency {

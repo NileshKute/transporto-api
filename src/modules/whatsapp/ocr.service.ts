@@ -68,13 +68,19 @@ For Fuel Receipt:
 For Speedometer/Odometer Reading:
 {"type": "SPEEDOMETER", "odometerReading": 0, "vehicleNumber": ""}
 
+For Maintenance Bill / Service Bill / Garage Receipt / Workshop Invoice:
+{"type": "MAINTENANCE_BILL", "vehicleNumber": "", "date": "DD/MM/YYYY", "garageName": "", "description": "", "serviceType": "", "partsUsed": "", "laborCost": 0, "partsCost": 0, "totalCost": 0, "billNumber": "", "odometerKm": 0, "garageContact": ""}
+
+The serviceType should be one of: Regular Servicing, Tyre Change/Repair, AC Servicing, Battery Replace, Brake Repair, Body/Denting/Painting, Accident Repair, Compressor Servicing, Gas Refill, Thermostat Calibration, Condenser Cleaning, Evaporator Service, or Other.
+Determine if it is a TRUCK or REEFER service based on parts/description (compressor, refrigerant, thermostat, condenser, evaporator, reefer, cooling, freezer = REEFER; otherwise prefer TRUCK). Still output MAINTENANCE_BILL with the fields above; category inference is done downstream from description/parts/serviceType text.
+
 If you cannot determine the document type, set type as "UNKNOWN" and extract whatever text you can see.
 If a field is not visible or unclear, set it as null.
 Always try to read the vehicle registration number - it's the most important field.`;
 
     const userPrompt = documentType
       ? `This is a ${documentType} document. Extract all data from this image.`
-      : `Identify what type of document this is (PUC, Insurance, RC Book, License, Fuel Receipt, Speedometer) and extract all data.`;
+      : `Identify what type of document this is (PUC, Insurance, RC Book, License, Fuel Receipt, Speedometer, Maintenance/Garage Bill) and extract all data.`;
 
     const model =
       process.env.ANTHROPIC_OCR_MODEL || 'claude-sonnet-4-20250514';
