@@ -19,6 +19,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ClientModule } from './modules/client/client.module';
 import { InvoiceModule } from './modules/invoice/invoice.module';
 import { DriverLedgerModule } from './modules/driver-ledger/driver-ledger.module';
+import { BpclModule } from './modules/bpcl/bpcl.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { DriverLedgerModule } from './modules/driver-ledger/driver-ledger.module
     ClientModule,
     InvoiceModule,
     DriverLedgerModule,
+    BpclModule,
     PermissionsModule,
   ],
   providers: [

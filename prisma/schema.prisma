@@ -1038,3 +1038,69 @@ model DriverSalary {
   @@index([status])
   @@map("driver_salaries")
 }
+
+model BpclTransaction {
+  id              String    @id @default(uuid())
+  txnId           String    @unique
+  txnDate         DateTime
+  txnTime         String?
+  cardNumber      String
+  cardName        String?
+  vehicleNumber   String
+  vehicleId       String?
+  mobileNumber    String?
+  product         String
+  litres          Float
+  rate            Float
+  amount          Float
+  totalAmount     Float
+  stationName     String?
+  stationId       String?
+  stationCity     String?
+  stationState    String?
+  txnMode         String?
+  txnType         String?
+  txnCategory     String?
+  creditDebit     String?
+  slipNumber      String?
+  importBatchId   String?
+  source          String    @default("BPCL_SMARTFLEET")
+  createdAt       DateTime  @default(now())
+
+  @@index([txnDate])
+  @@index([cardNumber])
+  @@index([vehicleNumber])
+  @@index([importBatchId])
+  @@map("bpcl_transactions")
+}
+
+model BpclCard {
+  id              String           @id @default(uuid())
+  cardNumber      String           @unique
+  vehicleNumber   String
+  vehicleId       String?
+  cardName        String?
+  currentTag      String           @default("BUSINESS")
+  notes           String?          @db.Text
+  periods         BpclCardPeriod[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([vehicleNumber])
+  @@map("bpcl_cards")
+}
+
+model BpclCardPeriod {
+  id        String    @id @default(uuid())
+  cardId    String
+  card      BpclCard  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  tag       String
+  startDate DateTime
+  endDate   DateTime?
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  @@index([cardId])
+  @@index([startDate])
+  @@map("bpcl_card_periods")
+}
