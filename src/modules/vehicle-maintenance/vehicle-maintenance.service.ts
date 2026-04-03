@@ -60,6 +60,7 @@ export class VehicleMaintenanceService implements OnModuleInit {
   async createRecord(data: {
     vehicleId: string;
     typeId: string;
+    maintenanceTypeId?: string;
     category?: string;
     date: string | Date;
     description?: string;
@@ -79,6 +80,10 @@ export class VehicleMaintenanceService implements OnModuleInit {
     notes?: string;
     source?: string;
   }) {
+    if (data.maintenanceTypeId && !data.typeId) {
+      data.typeId = data.maintenanceTypeId;
+    }
+
     const labor = parseFloat(String(data.laborCost ?? 0)) || 0;
     const parts = parseFloat(String(data.partsCost ?? 0)) || 0;
     let totalCost = parseFloat(String(data.totalCost ?? 0)) || 0;
@@ -134,6 +139,10 @@ export class VehicleMaintenanceService implements OnModuleInit {
   }
 
   async updateRecord(id: string, data: Record<string, unknown>) {
+    if (data.maintenanceTypeId && !data.typeId) {
+      data.typeId = data.maintenanceTypeId;
+    }
+
     const existing = await this.prisma.vehicleMaintRecord.findUnique({
       where: { id },
     });
