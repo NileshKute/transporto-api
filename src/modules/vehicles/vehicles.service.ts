@@ -14,6 +14,7 @@ const RC_VEHICLE_KEYS = new Set<string>([
   'chassisNumber',
   'engineNumber',
   'registrationDate',
+  'rcNumber',
   'pucExpiryDate',
   'pucNumber',
   'insuranceExpiryDate',

@@ -31,6 +31,7 @@ export class SurepassService {
         { headers: this.getHeaders(), timeout: 30000 },
       );
 
+      this.logger.log('SurePass full response: ' + JSON.stringify(response.data?.data));
       this.logger.log(`RC verification response status: ${response.data?.status_code}`);
 
       if (response.data?.status_code === 200 && response.data?.data) {
@@ -153,13 +154,16 @@ export class SurepassService {
           ? parseInt(String(data.manufacturing_year), 10) || null
           : null,
       registrationDate: this.parseDate(str('registration_date')),
+      rcNumber: str('rc_number') || str('registration_number') || str('reg_no'),
       pucExpiryDate: this.parseDate(str('pucc_upto') || str('puc_valid_upto')),
       pucNumber: str('pucc_number') || str('puc_number'),
       insuranceExpiryDate: this.parseDate(str('insurance_upto') || str('insurance_validity')),
-      insuranceCompany: str('insurance_company') || str('insurer_name'),
-      insurancePolicyNumber: str('insurance_policy_number'),
+      insuranceCompany: str('insurance_company') || str('insurer_name') || str('insurance_name'),
+      insurancePolicyNumber: str('insurance_policy_number') || str('policy_number'),
       fitnessExpiryDate: this.parseDate(str('fit_up_to') || str('fitness_upto')),
-      taxExpiryDate: this.parseDate(str('tax_upto') || str('tax_paid_upto')),
+      taxExpiryDate: this.parseDate(
+        str('tax_upto') || str('tax_paid_upto') || str('road_tax_upto'),
+      ),
       permitExpiryDate: this.parseDate(str('permit_valid_upto') || str('national_permit_upto')),
       permitNumber: str('permit_number') || str('national_permit_number'),
       loadCapacityKg:
