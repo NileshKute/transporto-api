@@ -362,6 +362,14 @@ model Vehicle {
   permitExpiryDate    DateTime?
   permitUrl           String?
 
+  // GeoTrackers / live GPS snapshot (updated by sync or jobs)
+  lastLatitude    Float?
+  lastLongitude   Float?
+  lastSpeed       Float?
+  lastTemperature Float?
+  lastGpsUpdate   DateTime?
+  gpsStatus       String?    @default("UNKNOWN")
+
   trips           Trip[]
   fuelEntries     FuelEntry[]
   maintenance          Maintenance[]

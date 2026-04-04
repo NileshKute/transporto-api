@@ -43,6 +43,7 @@ async function bootstrap() {
     .addTag('Auth', 'Authentication endpoints')
     .addTag('Dashboard', 'Aggregated stats and recent activity')
     .addTag('Vehicles', 'Vehicle management')
+    .addTag('GPS', 'GeoTrackers live location and sync')
     .addTag('Drivers', 'Driver management')
     .addTag('Trips', 'Trip management')
     .addTag('Fuel', 'Fuel entry management')

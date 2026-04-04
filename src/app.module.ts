@@ -21,6 +21,7 @@ import { InvoiceModule } from './modules/invoice/invoice.module';
 import { DriverLedgerModule } from './modules/driver-ledger/driver-ledger.module';
 import { BpclModule } from './modules/bpcl/bpcl.module';
 import { VehicleMaintenanceModule } from './modules/vehicle-maintenance/vehicle-maintenance.module';
+import { GpsModule } from './modules/gps/gps.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { VehicleMaintenanceModule } from './modules/vehicle-maintenance/vehicle-
     DriverLedgerModule,
     BpclModule,
     VehicleMaintenanceModule,
+    GpsModule,
     PermissionsModule,
   ],
   providers: [
