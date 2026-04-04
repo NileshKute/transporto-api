@@ -125,50 +125,121 @@ export class SurepassService {
     return lastFailure;
   }
 
-  /** Maps SurePass RC payload to existing Prisma Vehicle scalar fields only. */
+  /**
+   * Full SurePass RC → app shape. Includes preview-only fields; Prisma saves use a subset in VehiclesService.
+   * `fuelType` is enum-safe for DB; `fuelTypeRaw` is the original API string (e.g. PETROL/CNG).
+   */
   private mapRCData(data: Record<string, unknown>) {
-    const str = (k: string) => {
-      const v = data[k];
-      if (v === null || v === undefined) return null;
-      const s = String(v).trim();
-      return s.length ? s : null;
-    };
+    const pn = this.pickStr(data, 'permit_number');
+    const npn = this.pickStr(data, 'national_permit_number');
+    const permitNum =
+      pn && pn !== '0' ? pn : npn && npn.length ? npn : null;
 
-    const classDesc = str('vehicle_class_description') || str('class_of_vehicle') || '';
+    const gross =
+      data.vehicle_gross_weight != null ? parseInt(String(data.vehicle_gross_weight), 10) : NaN;
+    const unladen = data.unladen_weight != null ? parseInt(String(data.unladen_weight), 10) : NaN;
+    const loadCap =
+      !Number.isNaN(gross) && !Number.isNaN(unladen) ? gross - unladen : null;
 
-    const fuelRaw = str('fuel_description') || str('fuel_type');
-    const mappedFuel = fuelRaw ? this.mapFuelType(fuelRaw) : null;
+    let year: number | null = null;
+    const mfgFmt = this.pickStr(data, 'manufacturing_date_formatted');
+    if (mfgFmt) {
+      const y = parseInt(mfgFmt.split('-')[0], 10);
+      year = Number.isNaN(y) ? null : y;
+    }
+    if (year == null) {
+      const mfg = this.pickStr(data, 'manufacturing_date');
+      if (mfg) year = this.extractYearFromMfgDate(mfg);
+    }
+    if (year == null && data.manufacturing_year != null) {
+      const y = parseInt(String(data.manufacturing_year), 10);
+      year = Number.isNaN(y) ? null : y;
+    }
+
+    const classStr =
+      this.pickStr(data, 'vehicle_category_description', 'vehicle_category') ||
+      this.pickStr(data, 'vehicle_class_description', 'class_of_vehicle') ||
+      '';
+
+    const fuelRaw = this.pickStr(data, 'fuel_type', 'fuel_description');
 
     return {
-      ownerName: str('owner_name') || str('current_owner_name'),
-      make: str('maker_description') || str('vehicle_manufacturer_name'),
-      model: str('maker_model') || str('model'),
-      type: classDesc ? this.inferVehicleType(classDesc) : null,
-      fuelType: mappedFuel,
-      color: str('color') || str('vehicle_colour'),
-      engineNumber: str('engine_number'),
-      chassisNumber: str('chassis_number') || str('chasi_number'),
-      year: data.manufacturing_date
-        ? this.extractYear(String(data.manufacturing_date))
-        : data.manufacturing_year != null
-          ? parseInt(String(data.manufacturing_year), 10) || null
-          : null,
-      registrationDate: this.parseDate(str('registration_date')),
-      rcNumber: str('rc_number') || str('registration_number') || str('reg_no'),
-      pucExpiryDate: this.parseDate(str('pucc_upto') || str('puc_valid_upto')),
-      pucNumber: str('pucc_number') || str('puc_number'),
-      insuranceExpiryDate: this.parseDate(str('insurance_upto') || str('insurance_validity')),
-      insuranceCompany: str('insurance_company') || str('insurer_name') || str('insurance_name'),
-      insurancePolicyNumber: str('insurance_policy_number') || str('policy_number'),
-      fitnessExpiryDate: this.parseDate(str('fit_up_to') || str('fitness_upto')),
+      ownerName: this.pickStr(data, 'owner_name', 'current_owner_name'),
+      fatherName: this.pickStr(data, 'father_name'),
+      ownerAddress: this.pickStr(data, 'present_address', 'permanent_address'),
+      make: this.pickStr(data, 'maker_description', 'vehicle_manufacturer_name'),
+      model: this.pickStr(data, 'maker_model', 'model'),
+      vehicleClass: classStr || null,
+      type: classStr ? this.inferVehicleType(classStr) : null,
+      fuelTypeRaw: fuelRaw,
+      fuelType: fuelRaw ? this.mapFuelType(fuelRaw) : null,
+      color: this.pickStr(data, 'color', 'vehicle_colour'),
+      bodyType: this.pickStr(data, 'body_type'),
+      normsType: this.pickStr(data, 'norms_type', 'norms_description', 'emission_norms'),
+      engineNumber: this.pickStr(data, 'vehicle_engine_number', 'engine_number'),
+      chassisNumber: this.pickStr(data, 'vehicle_chasi_number', 'chassis_number', 'chasi_number'),
+      cubicCapacity:
+        data.cubic_capacity != null ? parseFloat(String(data.cubic_capacity)) || null : null,
+      seatingCapacity:
+        data.seat_capacity != null ? parseInt(String(data.seat_capacity), 10) || null : null,
+      numberOfCylinders:
+        data.no_cylinders != null ? parseInt(String(data.no_cylinders), 10) || null : null,
+      wheelbase: data.wheelbase != null ? parseInt(String(data.wheelbase), 10) || null : null,
+      grossVehicleWeight:
+        data.vehicle_gross_weight != null
+          ? parseInt(String(data.vehicle_gross_weight), 10) || null
+          : data.gross_vehicle_weight != null
+            ? parseInt(String(data.gross_vehicle_weight), 10) || null
+            : null,
+      unladenWeight:
+        data.unladen_weight != null ? parseInt(String(data.unladen_weight), 10) || null : null,
+      loadCapacityKg: loadCap,
+      year,
+      registrationDate: this.parseDate(this.pickStr(data, 'registration_date') ?? undefined),
+      registrationAuthority: this.pickStr(data, 'registered_at', 'rto_name'),
+      rcNumber: this.pickStr(data, 'rc_number', 'registration_number', 'reg_no'),
+      financer: this.pickStr(data, 'financer'),
+      financed: data.financed === true,
+      insuranceCompany: this.pickStr(data, 'insurance_company', 'insurer_name', 'insurance_name'),
+      insurancePolicyNumber: this.pickStr(data, 'insurance_policy_number', 'policy_number'),
+      insuranceExpiryDate: this.parseDate(this.pickStr(data, 'insurance_upto', 'insurance_validity') ?? undefined),
+      fitnessExpiryDate: this.parseDate(this.pickStr(data, 'fit_up_to', 'fitness_upto') ?? undefined),
+      pucNumber: this.pickStr(data, 'pucc_number', 'puc_number'),
+      pucExpiryDate: this.parseDate(this.pickStr(data, 'pucc_upto', 'puc_valid_upto') ?? undefined),
       taxExpiryDate: this.parseDate(
-        str('tax_upto') || str('tax_paid_upto') || str('road_tax_upto'),
+        this.pickStr(data, 'tax_upto', 'tax_paid_upto', 'road_tax_upto') ?? undefined,
       ),
-      permitExpiryDate: this.parseDate(str('permit_valid_upto') || str('national_permit_upto')),
-      permitNumber: str('permit_number') || str('national_permit_number'),
-      loadCapacityKg:
-        data.gross_vehicle_weight != null ? parseFloat(String(data.gross_vehicle_weight)) || null : null,
+      permitNumber: permitNum,
+      permitExpiryDate: this.parseDate(
+        this.pickStr(data, 'permit_valid_upto', 'national_permit_upto') ?? undefined,
+      ),
+      rcStatus: this.pickStr(data, 'rc_status', 'vehicle_status'),
+      ownerCount:
+        data.owner_number != null ? parseInt(String(data.owner_number), 10) || null : null,
     };
+  }
+
+  private pickStr(data: Record<string, unknown>, ...keys: string[]): string | null {
+    for (const k of keys) {
+      const v = data[k];
+      if (v === null || v === undefined) continue;
+      const s = String(v).trim();
+      if (s.length) return s;
+    }
+    return null;
+  }
+
+  private extractYearFromMfgDate(dateStr: string): number | null {
+    const parts = dateStr.split('/');
+    if (parts.length === 2) {
+      const y = parseInt(parts[1], 10);
+      return Number.isNaN(y) ? null : y;
+    }
+    if (parts.length === 1) {
+      const y = parseInt(parts[0], 10);
+      return Number.isNaN(y) ? null : y;
+    }
+    return null;
   }
 
   private parseDate(dateStr: string | null | undefined): Date | null {
@@ -203,13 +274,12 @@ export class SurepassService {
     return Number.isNaN(t) ? null : new Date(t);
   }
 
-  private extractYear(dateStr: string): number | null {
-    const date = this.parseDate(dateStr);
-    return date ? date.getFullYear() : null;
-  }
-
   private inferVehicleType(vehicleClass: string): VehicleType {
     const cls = vehicleClass.toLowerCase();
+    if (cls.includes('motor car') || (cls.includes('lmv') && cls.includes('car')))
+      return VehicleType.VAN;
+    if (cls.includes('car') || cls.includes('saloon') || cls.includes('sedan') || cls.includes('jeep'))
+      return VehicleType.VAN;
     if (cls.includes('goods') || cls.includes('truck') || cls.includes('lorry')) return VehicleType.TRUCK;
     if (cls.includes('tractor') || cls.includes('trailer')) return VehicleType.TRAILER;
     if (cls.includes('reefer') || cls.includes('fridge') || cls.includes('refrigerat'))

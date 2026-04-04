@@ -1,46 +1,49 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SurepassService } from '../surepass/surepass.service';
 
-const RC_VEHICLE_KEYS = new Set<string>([
-  'ownerName',
+/** Prisma `Vehicle` columns that RC verification may write (see schema). */
+const VEHICLE_RC_MODEL_FIELDS = [
   'make',
   'model',
   'year',
   'type',
   'fuelType',
   'color',
-  'chassisNumber',
   'engineNumber',
+  'chassisNumber',
+  'ownerName',
+  'loadCapacityKg',
   'registrationDate',
   'rcNumber',
-  'pucExpiryDate',
-  'pucNumber',
-  'insuranceExpiryDate',
   'insuranceCompany',
   'insurancePolicyNumber',
-  'fitnessExpiryDate',
-  'taxExpiryDate',
-  'permitExpiryDate',
-  'permitNumber',
-  'loadCapacityKg',
-]);
-
-const ALWAYS_UPDATE_RC_KEYS = [
-  'fitnessExpiryDate',
   'insuranceExpiryDate',
-  'insuranceCompany',
-  'insurancePolicyNumber',
-  'pucExpiryDate',
+  'fitnessExpiryDate',
   'pucNumber',
+  'pucExpiryDate',
   'taxExpiryDate',
-  'permitExpiryDate',
   'permitNumber',
+  'permitExpiryDate',
 ] as const;
+
+/** Refreshed on every verify (expiry / policy identity). */
+const ALWAYS_UPDATE_RC_FIELDS: readonly string[] = [
+  'insuranceCompany',
+  'insurancePolicyNumber',
+  'insuranceExpiryDate',
+  'fitnessExpiryDate',
+  'pucNumber',
+  'pucExpiryDate',
+  'taxExpiryDate',
+  'permitNumber',
+  'permitExpiryDate',
+];
 
 @Injectable()
 export class VehiclesService {
+  private readonly logger = new Logger(VehiclesService.name);
+
   constructor(
     private prisma: PrismaService,
     private surepass: SurepassService,
@@ -172,46 +175,74 @@ export class VehiclesService {
     }
 
     const mapped = result.data as Record<string, unknown>;
-    const updateData: Prisma.VehicleUpdateInput = {};
+    const updateData: Record<string, unknown> = {};
 
-    for (const key of ALWAYS_UPDATE_RC_KEYS) {
-      const v = mapped[key];
-      if (v !== null && v !== undefined) {
-        (updateData as Record<string, unknown>)[key] = v;
+    for (const key of VEHICLE_RC_MODEL_FIELDS) {
+      const newValue = mapped[key];
+      if (newValue === null || newValue === undefined || newValue === '') continue;
+
+      const currentValue = (vehicle as Record<string, unknown>)[key];
+
+      if (ALWAYS_UPDATE_RC_FIELDS.includes(key)) {
+        updateData[key] = newValue;
+      } else {
+        const isEmpty =
+          currentValue === null ||
+          currentValue === undefined ||
+          currentValue === '' ||
+          currentValue === 'Unknown' ||
+          currentValue === 'N/A' ||
+          currentValue === 0;
+        if (isEmpty) {
+          updateData[key] = newValue;
+        }
       }
     }
 
-    for (const [key, value] of Object.entries(mapped)) {
-      if (!RC_VEHICLE_KEYS.has(key)) continue;
-      if ((ALWAYS_UPDATE_RC_KEYS as readonly string[]).includes(key)) continue;
-      if (value === null || value === undefined) continue;
-
-      const current = (vehicle as Record<string, unknown>)[key];
-      if (
-        current === null ||
-        current === undefined ||
-        current === '' ||
-        current === 'Unknown' ||
-        current === 'N/A' ||
-        current === 0
-      ) {
-        (updateData as Record<string, unknown>)[key] = value;
-      }
-    }
+    let fieldsUpdated: string[] = [];
 
     if (Object.keys(updateData).length > 0) {
-      await this.prisma.vehicle.update({
-        where: { id: vehicleId },
-        data: updateData,
-      });
+      try {
+        await this.prisma.vehicle.update({
+          where: { id: vehicleId },
+          data: updateData,
+        });
+        fieldsUpdated = Object.keys(updateData);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.logger.warn(`Some RC fields failed to save: ${msg}`);
+        const minimalKeys = [
+          'make',
+          'model',
+          'year',
+          'color',
+          'engineNumber',
+          'chassisNumber',
+          'ownerName',
+          'insuranceExpiryDate',
+          'fitnessExpiryDate',
+          'pucExpiryDate',
+          'pucNumber',
+        ] as const;
+        const safeUpdate: Record<string, unknown> = {};
+        for (const key of minimalKeys) {
+          if (updateData[key] !== undefined) safeUpdate[key] = updateData[key];
+        }
+        if (Object.keys(safeUpdate).length > 0) {
+          await this.prisma.vehicle.update({
+            where: { id: vehicleId },
+            data: safeUpdate,
+          });
+          fieldsUpdated = Object.keys(safeUpdate);
+        }
+      }
     }
 
-    const n = Object.keys(updateData).length;
     return {
       success: true,
-      fieldsUpdated: Object.keys(updateData),
+      fieldsUpdated,
       data: mapped,
-      message: `Vehicle verified. ${n} field(s) updated.`,
+      message: `Vehicle verified. ${fieldsUpdated.length} field(s) updated.`,
     };
   }
 
