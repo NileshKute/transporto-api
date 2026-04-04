@@ -6,6 +6,10 @@ import {
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  buildColdChainRouteReportPdf,
+  computeRouteReportStats,
+} from './gps-route-report-pdf';
 
 interface GeoTrackerVehicle {
   speed?: number;
@@ -548,6 +552,64 @@ export class GpsService {
         client: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getVehicleById(vehicleId: string) {
+    return this.prisma.vehicle.findFirst({
+      where: { id: vehicleId, isDeleted: false },
+      select: { regNumber: true, make: true, model: true },
+    });
+  }
+
+  async generateRouteReport(
+    vehicleId: string,
+    date: string,
+    clientName?: string,
+  ): Promise<Buffer> {
+    const vehicle = await this.prisma.vehicle.findFirst({
+      where: { id: vehicleId, isDeleted: false },
+      select: {
+        regNumber: true,
+        make: true,
+        model: true,
+        type: true,
+        iconType: true,
+      },
+    });
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found');
+    }
+
+    const routeData = await this.getRouteTrail(vehicleId, date, date);
+    const points = (routeData.points || []).map((p) => ({
+      latitude: p.latitude,
+      longitude: p.longitude,
+      speed: p.speed,
+      temperature: p.temperature,
+      status: p.status,
+      location: p.location,
+      recordedAt:
+        p.recordedAt instanceof Date ? p.recordedAt : new Date(p.recordedAt),
+    }));
+
+    if (points.length === 0) {
+      throw new BadRequestException('No route data available for this date');
+    }
+
+    const stats = computeRouteReportStats(points);
+    return buildColdChainRouteReportPdf({
+      vehicle: {
+        regNumber: vehicle.regNumber,
+        make: vehicle.make,
+        model: vehicle.model,
+        type: String(vehicle.type),
+        iconType: vehicle.iconType,
+      },
+      stats,
+      date,
+      clientName,
+      points,
     });
   }
 }

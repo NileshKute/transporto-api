@@ -6,13 +6,17 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiProduces,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+import { Response } from 'express';
 import { GpsService } from './gps.service';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
@@ -58,6 +62,43 @@ export class GpsController {
       Number(page) || 1,
       Number(limit) || 100,
     );
+  }
+
+  @Get('route-report')
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @RequirePermission('vehicles', 'view')
+  @ApiProduces('application/pdf')
+  @ApiOperation({
+    summary: 'Cold chain compliance PDF report for a single day',
+  })
+  @ApiQuery({ name: 'vehicleId', required: true })
+  @ApiQuery({ name: 'date', required: true, description: 'YYYY-MM-DD' })
+  @ApiQuery({ name: 'clientName', required: false })
+  async getRouteReport(
+    @Query('vehicleId') vehicleId: string,
+    @Query('date') date: string,
+    @Query('clientName') clientName: string | undefined,
+    @Res({ passthrough: false }) res: Response,
+  ) {
+    if (!vehicleId || !date) {
+      throw new BadRequestException('vehicleId and date required');
+    }
+    const pdfBuffer = await this.gpsService.generateRouteReport(
+      vehicleId,
+      date,
+      clientName,
+    );
+    const meta = await this.gpsService.getVehicleById(vehicleId);
+    const regSafe =
+      (meta?.regNumber || 'vehicle').replace(/[^\w.-]+/g, '_') || 'vehicle';
+    const filename = `Route_Report_${regSafe}_${date}.pdf`;
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': pdfBuffer.length,
+    });
+    res.end(pdfBuffer);
   }
 
   @Get('route')
