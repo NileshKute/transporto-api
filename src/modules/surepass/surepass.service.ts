@@ -26,7 +26,7 @@ export class SurepassService {
 
     try {
       const response = await axios.post(
-        `${this.baseUrl}/api/v1/identity/rc-text`,
+        `${this.baseUrl}/api/v1/rc/rc-full`,
         { id_number: regNumber },
         { headers: this.getHeaders(), timeout: 30000 },
       );
