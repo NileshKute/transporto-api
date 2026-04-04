@@ -249,7 +249,35 @@ export class BpclService {
           .map((v) => v.trim())
           .filter((v) => v.length > 0);
         if (parts.length > 0) {
-          where.vehicleNumber = { in: parts };
+          const vehicleOr = parts.map((v) => ({
+            vehicleNumber: { equals: v, mode: 'insensitive' as const },
+          }));
+
+          const hasExistingOr =
+            Object.prototype.hasOwnProperty.call(where, 'OR') &&
+            where.OR != null &&
+            (Array.isArray(where.OR)
+              ? (where.OR as unknown[]).length > 0
+              : true);
+
+          if (hasExistingOr) {
+            const existingOr = where.OR;
+            delete where.OR;
+            const andArr: object[] = [];
+            if (where.AND) {
+              if (Array.isArray(where.AND)) {
+                andArr.push(...(where.AND as object[]));
+              } else {
+                andArr.push(where.AND as object);
+              }
+              delete where.AND;
+            }
+            andArr.push({ OR: existingOr });
+            andArr.push({ OR: vehicleOr });
+            where.AND = andArr;
+          } else {
+            where.OR = vehicleOr;
+          }
         }
       } else {
         where.vehicleNumber = {
