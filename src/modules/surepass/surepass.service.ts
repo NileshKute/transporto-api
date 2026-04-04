@@ -26,7 +26,7 @@ export class SurepassService {
 
     try {
       const response = await axios.post(
-        `${this.baseUrl}/api/v1/rc/rc-text`,
+        `${this.baseUrl}/api/v1/identity/rc-text`,
         { id_number: regNumber },
         { headers: this.getHeaders(), timeout: 30000 },
       );
@@ -73,38 +73,55 @@ export class SurepassService {
 
     const regNumber = vehicleNumber.replace(/[\s\-]/g, '').toUpperCase();
 
-    try {
-      const response = await axios.post(
-        `${this.baseUrl}/api/v1/utility/rc-challan-advanced`,
-        { id_number: regNumber },
-        { headers: this.getHeaders(), timeout: 30000 },
-      );
+    const paths = [
+      '/api/v1/utility/rc-challan-advanced',
+      '/api/v1/rc-challan-advanced',
+    ] as const;
 
-      if (response.data?.status_code === 200 && response.data?.data) {
-        return {
-          success: true,
-          data: response.data.data,
-        };
-      }
+    let lastFailure: { success: false; message: string; statusCode?: number; raw?: unknown } = {
+      success: false,
+      message: 'Challan lookup failed',
+    };
 
-      return {
-        success: false,
-        message: response.data?.message || 'Challan lookup failed',
-      };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Challan lookup error: ${message}`);
-      if (axios.isAxiosError(err)) {
-        const ax = err as AxiosError<{ message?: string }>;
-        const body = ax.response?.data;
-        return {
+    for (const path of paths) {
+      try {
+        const response = await axios.post(
+          `${this.baseUrl}${path}`,
+          { id_number: regNumber },
+          { headers: this.getHeaders(), timeout: 30000 },
+        );
+
+        if (response.data?.status_code === 200 && response.data?.data) {
+          return {
+            success: true,
+            data: response.data.data,
+          };
+        }
+
+        lastFailure = {
           success: false,
-          message: body?.message || message,
-          statusCode: ax.response?.status,
+          message: response.data?.message || 'Challan lookup failed',
+          raw: response.data,
         };
+        this.logger.warn(`Challan lookup unsuccessful from ${path}: ${lastFailure.message}`);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Challan lookup error (${path}): ${message}`);
+        if (axios.isAxiosError(err)) {
+          const ax = err as AxiosError<{ message?: string }>;
+          const body = ax.response?.data;
+          lastFailure = {
+            success: false,
+            message: body?.message || message,
+            statusCode: ax.response?.status,
+          };
+        } else {
+          lastFailure = { success: false, message };
+        }
       }
-      return { success: false, message };
     }
+
+    return lastFailure;
   }
 
   /** Maps SurePass RC payload to existing Prisma Vehicle scalar fields only. */
