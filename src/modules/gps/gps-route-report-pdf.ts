@@ -479,12 +479,13 @@ export function buildColdChainRouteReportPdf(params: {
 
   section('TEMPERATURE COMPLIANCE');
   y = ensureSpace(doc, y, 70);
-  const compText = stats.compliant ? '✅ COMPLIANT' : '❌ NON-COMPLIANT';
   const compColor = stats.compliant ? C.green : C.red;
+  const compLabel = stats.compliant ? 'COMPLIANT' : 'NON-COMPLIANT';
   doc.save();
   doc.rect(ML, y, CW, 62).fill(C.bg).strokeColor(C.border).lineWidth(0.5).stroke();
   doc.restore();
-  doc.font('Helvetica-Bold').fontSize(11).fillColor(compColor).text(`Status: ${compText}`, ML + 10, y + 8);
+  doc.font('Helvetica-Bold').fontSize(11).fillColor(C.navy).text('Status: ', ML + 10, y + 8, { continued: true });
+  doc.fillColor(compColor).text(compLabel);
   doc.font('Helvetica').fontSize(9).fillColor(C.navy);
   const minT = stats.minTemp != null ? `${stats.minTemp.toFixed(1)}°C` : '—';
   const maxT = stats.maxTemp != null ? `${stats.maxTemp.toFixed(1)}°C` : '—';
@@ -500,7 +501,7 @@ export function buildColdChainRouteReportPdf(params: {
 
   section('TEMPERATURE LOG (sampled every 15 minutes)');
   const tCols = [50, 200, 60, 40];
-  const tHeaders = ['Time', 'Location', 'Temp°C', '✓/✗'];
+  const tHeaders = ['Time', 'Location', 'Temp°C', 'OK'];
   const tRowH = 16;
   const drawTableHeader = (headers: string[], widths: number[]) => {
     y = ensureSpace(doc, y, tRowH + 4);
@@ -531,7 +532,7 @@ export function buildColdChainRouteReportPdf(params: {
       fmtTime(row.time),
       row.location,
       row.temp.toFixed(1),
-      row.ok ? '✓' : '✗',
+      row.ok ? 'OK' : '!',
     ];
     vals.forEach((cell, cidx) => {
       doc.font('Helvetica').fontSize(8)
@@ -575,7 +576,7 @@ export function buildColdChainRouteReportPdf(params: {
   drawTableHeader(['Time', 'Speed', 'Location'], sCols);
   if (stats.speedViolations.length === 0) {
     y = ensureSpace(doc, y, tRowH);
-    doc.font('Helvetica').fontSize(8).fillColor(C.green).text('No speed violations. ✅', ML + 6, y + 4);
+    doc.font('Helvetica').fontSize(8).fillColor(C.navy).text('No speed violations recorded.', ML + 6, y + 4);
     y += tRowH + 6;
   } else {
     stats.speedViolations.forEach((s, idx) => {
