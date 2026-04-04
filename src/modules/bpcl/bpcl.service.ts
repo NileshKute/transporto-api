@@ -242,10 +242,21 @@ export class BpclService {
   }) {
     const where: Record<string, unknown> = {};
     if (filters.vehicleNumber) {
-      where.vehicleNumber = {
-        contains: filters.vehicleNumber,
-        mode: 'insensitive',
-      };
+      const raw = filters.vehicleNumber.trim();
+      if (raw.includes(',')) {
+        const parts = raw
+          .split(',')
+          .map((v) => v.trim())
+          .filter((v) => v.length > 0);
+        if (parts.length > 0) {
+          where.vehicleNumber = { in: parts };
+        }
+      } else {
+        where.vehicleNumber = {
+          contains: raw,
+          mode: 'insensitive',
+        };
+      }
     }
     if (filters.cardNumber) {
       where.cardNumber = filters.cardNumber;
