@@ -369,6 +369,7 @@ model Vehicle {
   lastTemperature Float?
   lastGpsUpdate   DateTime?
   gpsStatus       String?    @default("UNKNOWN")
+  iconType        String     @default("reefer_truck") // truck icon for GPS map display
 
   trips           Trip[]
   fuelEntries     FuelEntry[]

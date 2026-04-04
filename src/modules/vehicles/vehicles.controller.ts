@@ -1,6 +1,13 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiBody,
+} from '@nestjs/swagger';
 import { VehiclesService } from './vehicles.service';
+import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
@@ -66,6 +73,11 @@ export class VehiclesController {
   @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
   @RequirePermission('vehicles', 'edit')
   @ApiOperation({ summary: 'Update vehicle (Admin/Manager only)' })
+  @ApiBody({
+    type: UpdateVehicleDto,
+    description:
+      'Any vehicle fields; iconType is documented here. Other fields pass through unchanged.',
+  })
   update(@Param('id') id: string, @Body() dto: any) {
     return this.vehiclesService.update(id, dto);
   }
