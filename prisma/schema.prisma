@@ -380,6 +380,9 @@ model Vehicle {
   documents       VehicleDocument[]
   assignments     DriverVehicleAssignment[]
   clientVehicles  ClientVehicle[]
+  gpsLive         GpsLive[]
+  gpsHistory      GpsHistory[]
+  gpsShareSessions GpsShareSession[]
 
   @@index([regNumber])
   @@index([status])
@@ -842,6 +845,7 @@ model Client {
   updatedAt        DateTime  @updatedAt
   invoices         Invoice[]
   clientVehicles   ClientVehicle[]
+  gpsShareSessions GpsShareSession[]
 
   @@index([isActive])
   @@map("clients")
@@ -1161,4 +1165,93 @@ model BpclCardPeriod {
   @@index([cardId])
   @@index([startDate])
   @@map("bpcl_card_periods")
+}
+
+// ============================================
+// GPS LIVE — one row per GeoTracker device (upsert)
+// ============================================
+model GpsLive {
+  id              String    @id @default(uuid())
+  vehicleId       String?
+  vehicle         Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  geoTrackerKey   String    @unique
+  regNumber       String
+  latitude        Float
+  longitude       Float
+  speed           Float     @default(0)
+  direction       Int       @default(0)
+  temperature     Float?
+  ignitionOn      Boolean   @default(false)
+  acOn            Boolean   @default(false)
+  doorOpen        Boolean   @default(false)
+  status          String    @default("UNKNOWN")
+  haltedSince     String?
+  movingSince     String?
+  noDataSince     String?
+  location        String?
+  elevation       Float?
+  bmStr           String?
+  rawAnalogData   String?
+  deviceTimestamp DateTime?
+  lastSyncAt      DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([vehicleId])
+  @@index([regNumber])
+  @@index([status])
+  @@map("gps_live")
+}
+
+// ============================================
+// GPS HISTORY — append-only pings
+// ============================================
+model GpsHistory {
+  id              String    @id @default(uuid())
+  vehicleId       String?
+  vehicle         Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  geoTrackerKey   String
+  regNumber       String
+  latitude        Float
+  longitude       Float
+  speed           Float     @default(0)
+  direction       Int       @default(0)
+  temperature     Float?
+  ignitionOn      Boolean   @default(false)
+  acOn            Boolean   @default(false)
+  status          String    @default("UNKNOWN")
+  haltedSince     String?
+  movingSince     String?
+  location        String?
+  bmStr           String?
+  rawAnalogData   String?
+  deviceTimestamp DateTime?
+  recordedAt      DateTime  @default(now())
+
+  @@index([vehicleId, recordedAt])
+  @@index([regNumber, recordedAt])
+  @@index([recordedAt])
+  @@map("gps_history")
+}
+
+// ============================================
+// GPS SHARE — public live tracking by token
+// ============================================
+model GpsShareSession {
+  id        String    @id @default(uuid())
+  vehicleId String
+  vehicle   Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  clientId  String?
+  client    Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  token     String    @unique @default(uuid())
+  label     String?
+  isActive  Boolean   @default(true)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([token])
+  @@index([vehicleId])
+  @@index([isActive])
+  @@map("gps_share_sessions")
 }
