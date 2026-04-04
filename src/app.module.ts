@@ -23,12 +23,14 @@ import { DriverLedgerModule } from './modules/driver-ledger/driver-ledger.module
 import { BpclModule } from './modules/bpcl/bpcl.module';
 import { VehicleMaintenanceModule } from './modules/vehicle-maintenance/vehicle-maintenance.module';
 import { GpsModule } from './modules/gps/gps.module';
+import { SurepassModule } from './modules/surepass/surepass.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
+    SurepassModule,
     DashboardModule,
     VehiclesModule,
     DriversModule,

@@ -1,9 +1,49 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SurepassService } from '../surepass/surepass.service';
+
+const RC_VEHICLE_KEYS = new Set<string>([
+  'ownerName',
+  'make',
+  'model',
+  'year',
+  'type',
+  'fuelType',
+  'color',
+  'chassisNumber',
+  'engineNumber',
+  'registrationDate',
+  'pucExpiryDate',
+  'pucNumber',
+  'insuranceExpiryDate',
+  'insuranceCompany',
+  'insurancePolicyNumber',
+  'fitnessExpiryDate',
+  'taxExpiryDate',
+  'permitExpiryDate',
+  'permitNumber',
+  'loadCapacityKg',
+]);
+
+const ALWAYS_UPDATE_RC_KEYS = [
+  'fitnessExpiryDate',
+  'insuranceExpiryDate',
+  'insuranceCompany',
+  'insurancePolicyNumber',
+  'pucExpiryDate',
+  'pucNumber',
+  'taxExpiryDate',
+  'permitExpiryDate',
+  'permitNumber',
+] as const;
 
 @Injectable()
 export class VehiclesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private surepass: SurepassService,
+  ) {}
 
   async findAll(query: any) {
     const { status, type, search, page = 1, limit = 10 } = query;
@@ -117,6 +157,76 @@ export class VehiclesService {
         return { vehicleId: vehicle.id, regNumber: vehicle.regNumber, vehicleType: vehicle.type, alerts };
       })
       .filter((v) => v.alerts.length > 0);
+  }
+
+  async verifyAndUpdateRC(vehicleId: string) {
+    const vehicle = await this.prisma.vehicle.findFirst({
+      where: { id: vehicleId, isDeleted: false },
+    });
+    if (!vehicle) throw new NotFoundException('Vehicle not found');
+
+    const result = await this.surepass.verifyRC(vehicle.regNumber);
+    if (!result.success) {
+      return { success: false, message: result.message };
+    }
+
+    const mapped = result.data as Record<string, unknown>;
+    const updateData: Prisma.VehicleUpdateInput = {};
+
+    for (const key of ALWAYS_UPDATE_RC_KEYS) {
+      const v = mapped[key];
+      if (v !== null && v !== undefined) {
+        (updateData as Record<string, unknown>)[key] = v;
+      }
+    }
+
+    for (const [key, value] of Object.entries(mapped)) {
+      if (!RC_VEHICLE_KEYS.has(key)) continue;
+      if ((ALWAYS_UPDATE_RC_KEYS as readonly string[]).includes(key)) continue;
+      if (value === null || value === undefined) continue;
+
+      const current = (vehicle as Record<string, unknown>)[key];
+      if (
+        current === null ||
+        current === undefined ||
+        current === '' ||
+        current === 'Unknown' ||
+        current === 'N/A' ||
+        current === 0
+      ) {
+        (updateData as Record<string, unknown>)[key] = value;
+      }
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await this.prisma.vehicle.update({
+        where: { id: vehicleId },
+        data: updateData,
+      });
+    }
+
+    const n = Object.keys(updateData).length;
+    return {
+      success: true,
+      fieldsUpdated: Object.keys(updateData),
+      data: mapped,
+      message: `Vehicle verified. ${n} field(s) updated.`,
+    };
+  }
+
+  async verifyRCByNumber(vehicleNumber: string) {
+    if (!vehicleNumber?.trim()) {
+      throw new BadRequestException('vehicleNumber is required');
+    }
+    return this.surepass.verifyRC(vehicleNumber);
+  }
+
+  async fetchChallans(vehicleId: string) {
+    const vehicle = await this.prisma.vehicle.findFirst({
+      where: { id: vehicleId, isDeleted: false },
+    });
+    if (!vehicle) throw new NotFoundException('Vehicle not found');
+    return this.surepass.fetchChallans(vehicle.regNumber);
   }
 
   async getExpirySummary() {

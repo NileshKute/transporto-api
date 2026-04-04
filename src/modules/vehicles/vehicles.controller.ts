@@ -54,6 +54,30 @@ export class VehiclesController {
     return this.vehiclesService.getExpirySummary();
   }
 
+  @Post('verify-rc-number')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('vehicles', 'view')
+  @ApiOperation({ summary: 'Preview RC verification by registration number (SurePass, no DB update)' })
+  @ApiBody({ schema: { properties: { vehicleNumber: { type: 'string' } }, required: ['vehicleNumber'] } })
+  verifyRCByNumber(@Body() body: { vehicleNumber: string }) {
+    return this.vehiclesService.verifyRCByNumber(body.vehicleNumber);
+  }
+
+  @Get(':id/challans')
+  @RequirePermission('vehicles', 'view')
+  @ApiOperation({ summary: 'Fetch pending challans for vehicle reg number (SurePass)' })
+  getChallans(@Param('id') id: string) {
+    return this.vehiclesService.fetchChallans(id);
+  }
+
+  @Post(':id/verify-rc')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
+  @RequirePermission('vehicles', 'edit')
+  @ApiOperation({ summary: 'Verify RC via SurePass and smart-update vehicle fields' })
+  verifyRC(@Param('id') id: string) {
+    return this.vehiclesService.verifyAndUpdateRC(id);
+  }
+
   @Get(':id')
   @RequirePermission('vehicles', 'view')
   @ApiOperation({ summary: 'Get vehicle detail with trips, fuel, maintenance, insurance' })
