@@ -337,19 +337,14 @@ export class GpsService {
     page = 1,
     limit = 100,
   ) {
-    const end = this.endOfDayUtc(endDate);
     const where: Record<string, unknown> = {
       recordedAt: {
         gte: new Date(startDate),
-        lte: end,
+        lte: this.endOfRecordedRange(endDate),
       },
     };
 
-    if (/^[0-9a-f-]{36}$/i.test(vehicleId)) {
-      where.vehicleId = vehicleId;
-    } else {
-      where.regNumber = { contains: vehicleId, mode: 'insensitive' };
-    }
+    await this.applyHistoryVehicleFilter(where, vehicleId);
 
     const [data, total] = await Promise.all([
       this.prisma.gpsHistory.findMany({
@@ -365,19 +360,14 @@ export class GpsService {
   }
 
   async getRouteTrail(vehicleId: string, startDate: string, endDate: string) {
-    const end = this.endOfDayUtc(endDate);
     const where: Record<string, unknown> = {
       recordedAt: {
         gte: new Date(startDate),
-        lte: end,
+        lte: this.endOfRecordedRange(endDate),
       },
     };
 
-    if (/^[0-9a-f-]{36}$/i.test(vehicleId)) {
-      where.vehicleId = vehicleId;
-    } else {
-      where.regNumber = { contains: vehicleId, mode: 'insensitive' };
-    }
+    await this.applyHistoryVehicleFilter(where, vehicleId);
 
     const points = await this.prisma.gpsHistory.findMany({
       where,
@@ -396,11 +386,50 @@ export class GpsService {
     return { points, totalPoints: points.length };
   }
 
-  private endOfDayUtc(endDate: string): Date {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
-      return new Date(`${endDate}T23:59:59.999Z`);
+  /** End of calendar day for `endDate` (full day included in range). */
+  private endOfRecordedRange(endDate: string): Date {
+    const trimmed = endDate.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return new Date(`${trimmed}T23:59:59.999Z`);
     }
-    return new Date(endDate);
+    const endOfDay = new Date(trimmed);
+    if (Number.isNaN(endOfDay.getTime())) {
+      return new Date(endDate);
+    }
+    endOfDay.setHours(23, 59, 59, 999);
+    return endOfDay;
+  }
+
+  /**
+   * Match GpsHistory rows linked by vehicleId OR by regNumber (pings before vehicle match often have vehicleId null).
+   */
+  private async applyHistoryVehicleFilter(
+    where: Record<string, unknown>,
+    vehicleId: string,
+  ): Promise<void> {
+    if (!/^[0-9a-f-]{36}$/i.test(vehicleId)) {
+      where.regNumber = { contains: vehicleId, mode: 'insensitive' };
+      return;
+    }
+
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+      select: { regNumber: true },
+    });
+
+    if (vehicle?.regNumber) {
+      where.OR = [
+        { vehicleId: vehicleId },
+        {
+          regNumber: {
+            equals: vehicle.regNumber,
+            mode: 'insensitive',
+          },
+        },
+      ];
+    } else {
+      where.vehicleId = vehicleId;
+    }
   }
 
   async createShareSession(
@@ -514,9 +543,8 @@ export class GpsService {
 
   async listShareSessions() {
     return this.prisma.gpsShareSession.findMany({
-      where: { isActive: true },
       include: {
-        vehicle: { select: { regNumber: true } },
+        vehicle: { select: { regNumber: true, make: true, model: true } },
         client: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
