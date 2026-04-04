@@ -3,6 +3,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { WhatsAppParserService, ParsedResult } from './whatsapp-parser.service';
 import { OcrService } from './ocr.service';
 import { DataProcessorService } from './data-processor.service';
+import { DailyTripService } from '../trips/daily-trip.service';
+import type { ParsedDailyTripBlock } from '../trips/daily-trip-log-whatsapp.parser';
 import * as Twilio from 'twilio';
 
 const CONFIDENCE_THRESHOLD = 0.7;
@@ -17,6 +19,7 @@ export class WhatsAppService {
     private parser: WhatsAppParserService,
     private ocrService: OcrService,
     private dataProcessor: DataProcessorService,
+    private dailyTripService: DailyTripService,
   ) {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -265,6 +268,29 @@ export class WhatsAppService {
             },
           });
           autoReplyText = `✅ Fuel recorded: ${liters}L ₹${amount} at ${station}`;
+        }
+      } else if (parsed.type === 'DAILY_TRIP_LOG') {
+        const pd = parsed.parsedData as {
+          dateIso: string;
+          blocks: ParsedDailyTripBlock[];
+        };
+        try {
+          const rows = await this.dailyTripService.applyWhatsAppBlocks(pd);
+          if (rows.length > 0) {
+            const [y, m, d] = pd.dateIso.split('-');
+            const dd = `${d}/${m}/${y}`;
+            let reply = `✅ Trips logged for ${dd}\n\n`;
+            for (const r of rows) {
+              const plural = r.tripCount === 1 ? 'trip' : 'trips';
+              reply += `🚛 ${r.driverName} (${r.vehicleReg}) — ${r.tripCount} ${plural}\n`;
+            }
+            const total = rows.reduce((s, r) => s + r.tripCount, 0);
+            reply += `\nTotal: ${total} trips logged`;
+            autoReplyText = reply;
+          }
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          this.logger.warn(`Daily trip log WhatsApp failed: ${msg}`);
         }
       } else if (parsed.type === 'EMERGENCY') {
         const vehicle_reg = (data.vehicle_reg as string)?.trim();

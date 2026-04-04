@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { tryParseDailyTripLogMessage } from '../trips/daily-trip-log-whatsapp.parser';
 
 export type ParsedMessageType =
   | 'TRIP_START'
@@ -6,6 +7,7 @@ export type ParsedMessageType =
   | 'FUEL'
   | 'EMERGENCY'
   | 'LOCATION'
+  | 'DAILY_TRIP_LOG'
   | 'GENERAL';
 
 export interface ParsedResult {
@@ -23,6 +25,15 @@ export class WhatsAppParserService {
   parse(body: string): ParsedResult {
     const trimmed = (body || '').trim();
     const lower = trimmed.toLowerCase();
+
+    const daily = tryParseDailyTripLogMessage(trimmed);
+    if (daily) {
+      return {
+        type: 'DAILY_TRIP_LOG',
+        parsedData: daily.parsedData,
+        confidence: daily.confidence,
+      };
+    }
 
     // TRIP_START: "trip start [origin] to [destination] [vehicle_reg]"
     const tripStartMatch = lower.match(
