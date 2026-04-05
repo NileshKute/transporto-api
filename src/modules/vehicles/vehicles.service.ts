@@ -42,6 +42,7 @@ const VEHICLE_RC_MODEL_FIELDS = [
 
 /** Refreshed on every verify (expiry / policy identity). */
 const ALWAYS_UPDATE_RC_FIELDS: readonly string[] = [
+  'fuelType',
   'insuranceCompany',
   'insurancePolicyNumber',
   'insuranceStartDate',
