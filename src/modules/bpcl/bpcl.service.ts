@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { FuelType } from '@prisma/client';
+import { FuelType, Prisma, Vehicle } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as XLSX from 'xlsx';
 
@@ -99,10 +99,7 @@ export class BpclService {
         continue;
       }
 
-      const vehicleNumber = String(row[C.vehicleNumber] ?? '')
-        .trim()
-        .replace(/[\s-]/g, '')
-        .toUpperCase();
+      const vehicleNumber = this.normalizeBpclVehicleReg(row[C.vehicleNumber]);
       const cardNumber = String(row[C.cardNumber] ?? '').trim();
       if (!vehicleNumber || !cardNumber) {
         skipped++;
@@ -122,29 +119,13 @@ export class BpclService {
         continue;
       }
 
-      let vehicle = await this.prisma.vehicle.findFirst({
-        where: {
-          regNumber: { equals: vehicleNumber, mode: 'insensitive' },
-          isDeleted: false,
-        },
-      });
-      if (!vehicle) {
-        const fuelType = this.mapProductToFuelType(
-          String(row[C.product] ?? ''),
-        );
-        vehicle = await this.prisma.vehicle.create({
-          data: {
-            regNumber: vehicleNumber.substring(0, 20),
-            make: 'Unknown',
-            model: 'Unknown',
-            year: new Date().getFullYear(),
-            fuelType,
-            type: 'TRUCK',
-            status: 'ACTIVE',
-            currentKm: 0,
-          },
-        });
-        if (!newVehicles.includes(vehicleNumber)) newVehicles.push(vehicleNumber);
+      const fuelType = this.mapProductToFuelType(String(row[C.product] ?? ''));
+      const { vehicle, wasCreated } = await this.ensureVehicleForBpclImport(
+        vehicleNumber,
+        fuelType,
+      );
+      if (wasCreated && !newVehicles.includes(vehicleNumber)) {
+        newVehicles.push(vehicleNumber);
       }
       const vehicleId = vehicle.id;
 
@@ -213,6 +194,104 @@ export class BpclService {
       newVehiclesList: newVehicles,
       total: dataRows.length,
     };
+  }
+
+  /** BPCL / fleet reg: strip spaces & dashes, uppercase, max DB length. */
+  private normalizeBpclVehicleReg(raw: unknown): string {
+    return String(raw ?? '')
+      .trim()
+      .replace(/[\s-]/g, '')
+      .toUpperCase()
+      .substring(0, 20);
+  }
+
+  /**
+   * Match vehicles whose stored regNumber differs only by spaces/dashes (same rule as
+   * {@link normalizeBpclVehicleReg}). Prisma `equals` cannot see through that formatting.
+   */
+  private async findVehicleByLooseRegNumber(
+    normalizedReg: string,
+  ): Promise<Vehicle | null> {
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>(
+      Prisma.sql`
+        SELECT id FROM vehicles
+        WHERE UPPER(
+          REPLACE(
+            regexp_replace(BTRIM("regNumber"), E'\\s+', '', 'g'),
+            '-',
+            ''
+          )
+        ) = ${normalizedReg}
+        LIMIT 1
+      `,
+    );
+    const id = rows[0]?.id;
+    if (!id) return null;
+    return this.prisma.vehicle.findUnique({ where: { id } });
+  }
+
+  /**
+   * Find existing vehicle by reg (case-insensitive), including soft-deleted rows
+   * (they still hold the unique regNumber). Revive if deleted; create only when absent.
+   * Handles concurrent import races via P2002 retry.
+   */
+  private async ensureVehicleForBpclImport(
+    normalizedReg: string,
+    fuelType: FuelType,
+  ): Promise<{ vehicle: Vehicle; wasCreated: boolean }> {
+    const findMatch = () =>
+      this.prisma.vehicle.findFirst({
+        where: {
+          regNumber: { equals: normalizedReg, mode: 'insensitive' },
+        },
+      });
+
+    let vehicle = await findMatch();
+    if (!vehicle) {
+      vehicle = await this.findVehicleByLooseRegNumber(normalizedReg);
+    }
+    if (vehicle) {
+      if (vehicle.isDeleted) {
+        vehicle = await this.prisma.vehicle.update({
+          where: { id: vehicle.id },
+          data: { isDeleted: false, status: 'ACTIVE' },
+        });
+      }
+      return { vehicle, wasCreated: false };
+    }
+
+    try {
+      vehicle = await this.prisma.vehicle.create({
+        data: {
+          regNumber: normalizedReg,
+          make: 'Unknown',
+          model: 'Unknown',
+          year: new Date().getFullYear(),
+          fuelType,
+          type: 'TRUCK',
+          status: 'ACTIVE',
+          currentKm: 0,
+        },
+      });
+      return { vehicle, wasCreated: true };
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        vehicle = (await findMatch()) ?? (await this.findVehicleByLooseRegNumber(normalizedReg));
+        if (vehicle) {
+          if (vehicle.isDeleted) {
+            vehicle = await this.prisma.vehicle.update({
+              where: { id: vehicle.id },
+              data: { isDeleted: false, status: 'ACTIVE' },
+            });
+          }
+          return { vehicle, wasCreated: false };
+        }
+      }
+      throw e;
+    }
   }
 
   private strCell(v: unknown): string | null {
