@@ -74,14 +74,51 @@ export class DriversService {
     delete data.createdAt;
     delete data.updatedAt;
 
-    if (data.experience !== undefined) {
-      data.experience = parseInt(String(data.experience).replace(/[^0-9]/g, ''), 10) || 0;
+    const OPTIONAL_STRING_FIELDS = [
+      'bloodGroup',
+      'city',
+      'state',
+      'emergencyContact',
+      'emergencyName',
+      'employeeCode',
+      'address',
+      'nickname',
+    ];
+    for (const key of OPTIONAL_STRING_FIELDS) {
+      if (!Object.prototype.hasOwnProperty.call(dto, key)) continue;
+      if (data[key] === '') data[key] = null;
     }
-    if (data.salary !== undefined) {
-      data.salary = parseFloat(String(data.salary)) || 0;
+
+    const FLOAT_FIELDS = ['salary', 'baseSalary'];
+    for (const key of FLOAT_FIELDS) {
+      if (!Object.prototype.hasOwnProperty.call(dto, key)) continue;
+      if (data[key] === '' || data[key] === null || data[key] === undefined) {
+        data[key] = null;
+      } else {
+        const n = parseFloat(String(data[key]));
+        data[key] = Number.isNaN(n) ? null : n;
+      }
     }
-    if (data.rating !== undefined) {
-      data.rating = parseFloat(String(data.rating)) || 0;
+
+    const INT_FIELDS = ['experience'];
+    for (const key of INT_FIELDS) {
+      if (!Object.prototype.hasOwnProperty.call(dto, key)) continue;
+      if (data[key] === '' || data[key] === null || data[key] === undefined) {
+        delete data[key];
+      } else {
+        const n = parseInt(String(data[key]), 10);
+        if (Number.isNaN(n)) delete data[key];
+        else data[key] = n;
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(dto, 'rating')) {
+      if (data.rating === '' || data.rating === null || data.rating === undefined) delete data.rating;
+      else {
+        const r = parseFloat(String(data.rating));
+        if (Number.isNaN(r)) delete data.rating;
+        else data.rating = r;
+      }
     }
     if (data.licenseExpiry !== undefined) {
       data.licenseExpiry = data.licenseExpiry ? new Date(data.licenseExpiry) : null;
@@ -92,7 +129,7 @@ export class DriversService {
     if (data.joiningDate !== undefined) {
       data.joiningDate = data.joiningDate ? new Date(data.joiningDate) : null;
     }
-    if (data.nickname !== undefined) {
+    if (data.nickname !== undefined && data.nickname !== null) {
       const n = String(data.nickname).trim();
       data.nickname = n || null;
     }
