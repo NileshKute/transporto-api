@@ -75,15 +75,21 @@ export class BpclService {
 
     let imported = 0;
     let skipped = 0;
-    let duplicates = 0;
+    let duplicatesSkipped = 0;
     const newCards: string[] = [];
     const newVehicles: string[] = [];
     const errors: string[] = [];
 
     for (const row of dataRows) {
-      if (!Array.isArray(row)) continue;
-      const txnId = String(row[C.txnId] ?? '').trim();
-      if (!txnId || !txnId.startsWith('TXN')) continue;
+      if (!Array.isArray(row)) {
+        skipped++;
+        continue;
+      }
+      const txnIdNorm = this.normalizeBpclTxnId(row[C.txnId]);
+      if (!txnIdNorm) {
+        skipped++;
+        continue;
+      }
 
       const category = String(row[C.txnCategory] ?? '').toUpperCase();
       if (category && category !== 'SALE') {
@@ -91,11 +97,13 @@ export class BpclService {
         continue;
       }
 
-      const existing = await this.prisma.bpclTransaction.findUnique({
-        where: { txnId },
+      const existing = await this.prisma.bpclTransaction.findFirst({
+        where: {
+          txnId: { equals: txnIdNorm, mode: 'insensitive' },
+        },
       });
       if (existing) {
-        duplicates++;
+        duplicatesSkipped++;
         continue;
       }
 
@@ -114,7 +122,7 @@ export class BpclService {
 
       const txnDate = this.parseBpclDate(String(row[C.date] ?? ''));
       if (!txnDate) {
-        errors.push(`Row ${txnId}: invalid date ${row[C.date]}`);
+        errors.push(`Row ${txnIdNorm}: invalid date ${row[C.date]}`);
         skipped++;
         continue;
       }
@@ -151,10 +159,11 @@ export class BpclService {
         if (!newCards.includes(cardNumber)) newCards.push(cardNumber);
       }
 
-      await this.prisma.bpclTransaction.create({
-        data: {
-          txnId,
-          txnDate,
+      try {
+        await this.prisma.bpclTransaction.create({
+          data: {
+            txnId: txnIdNorm,
+            txnDate,
           txnTime: this.strCell(row[C.time]) || null,
           cardNumber,
           cardName: this.strCell(row[C.cardName]) || null,
@@ -177,23 +186,55 @@ export class BpclService {
           slipNumber: this.strCell(row[C.slipNumber]) || null,
           importBatchId: batchId,
         },
-      });
-      imported++;
+        });
+        imported++;
+      } catch (e) {
+        // Only txnId is unique on bpcl_transactions; race or normalization drift vs pre-check.
+        if (
+          e instanceof Prisma.PrismaClientKnownRequestError &&
+          e.code === 'P2002'
+        ) {
+          duplicatesSkipped++;
+          continue;
+        }
+        throw e;
+      }
     }
+
+    const totalRows = dataRows.length;
+    const totalProcessed = imported + duplicatesSkipped + skipped;
 
     return {
       success: true,
       batchId,
       imported,
-      duplicates,
+      duplicates: duplicatesSkipped,
+      duplicatesSkipped,
       skipped,
+      totalProcessed,
       errors: errors.slice(0, 10),
       newCards: newCards.length,
       newCardsList: newCards,
       newVehicles: newVehicles.length,
       newVehiclesList: newVehicles,
-      total: dataRows.length,
+      total: totalRows,
     };
+  }
+
+  /** Canonical BPCL transaction id for lookup + storage (matches DB regardless of Excel casing/spacing). */
+  private normalizeBpclTxnId(raw: unknown): string | null {
+    if (raw == null || raw === '') return null;
+    if (typeof raw === 'number') {
+      if (!Number.isFinite(raw)) return null;
+      const t = Math.trunc(raw);
+      if (!Number.isSafeInteger(t)) return null;
+      return `TXN${t}`;
+    }
+    let s = String(raw).trim().replace(/\s+/g, '').replace(/-/g, '').toUpperCase();
+    if (!s) return null;
+    if (s.startsWith('TXN')) return s;
+    if (/^\d+$/.test(s)) return `TXN${s}`;
+    return null;
   }
 
   /** BPCL / fleet reg: strip spaces & dashes, uppercase, max DB length. */
