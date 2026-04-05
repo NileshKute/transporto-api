@@ -61,6 +61,89 @@ const VEHICLE_RC_MODEL_FIELDS = [
 ] as const;
 
 /** Always refresh from government / RC source when a value is present. */
+/** Writable Vehicle scalars (Prisma); strips unknown keys from API payloads. */
+const VEHICLE_SCALAR_KEYS = new Set<string>([
+  'regNumber',
+  'type',
+  'make',
+  'model',
+  'variant',
+  'year',
+  'fuelType',
+  'status',
+  'currentKm',
+  'chassisNumber',
+  'engineNumber',
+  'color',
+  'bodyType',
+  'normsType',
+  'cubicCapacity',
+  'numberOfCylinders',
+  'seatingCapacity',
+  'sleeperCapacity',
+  'standingCapacity',
+  'wheelbase',
+  'unladenWeight',
+  'grossVehicleWeight',
+  'loadCapacityKg',
+  'numTires',
+  'tankCapacityL',
+  'purchaseDate',
+  'purchasePrice',
+  'photoUrl',
+  'notes',
+  'isDeleted',
+  'ownerName',
+  'fatherName',
+  'ownerAddress',
+  'ownerCount',
+  'registrationDate',
+  'rcNumber',
+  'registrationAuthority',
+  'vehicleCategory',
+  'vehicleClassDesc',
+  'rcStatus',
+  'pucNumber',
+  'pucIssueDate',
+  'pucExpiryDate',
+  'pucCertificateUrl',
+  'insurancePolicyNumber',
+  'insuranceCompany',
+  'insuranceStartDate',
+  'insuranceExpiryDate',
+  'insuranceCertificateUrl',
+  'insuranceType',
+  'financer',
+  'isFinanced',
+  'fitnessNumber',
+  'fitnessIssueDate',
+  'fitnessExpiryDate',
+  'fitnessCertificateUrl',
+  'taxReceiptNumber',
+  'taxPaidDate',
+  'taxExpiryDate',
+  'taxReceiptUrl',
+  'taxAmount',
+  'permitNumber',
+  'permitType',
+  'permitIssueDate',
+  'permitValidFrom',
+  'permitExpiryDate',
+  'permitUrl',
+  'blacklistStatus',
+  'nonUseStatus',
+  'nonUseFrom',
+  'nonUseTo',
+  'nocDetails',
+  'lastLatitude',
+  'lastLongitude',
+  'lastSpeed',
+  'lastTemperature',
+  'lastGpsUpdate',
+  'gpsStatus',
+  'iconType',
+]);
+
 const ALWAYS_UPDATE_RC_FIELDS: readonly string[] = [
   'fuelType',
   'rcStatus',
@@ -359,35 +442,79 @@ export class VehiclesService {
       data.regNumber = String(data.regNumber).replace(/[\s\-]/g, '').toUpperCase();
     }
 
+    const COERCE_STRING_FIELDS = [
+      'cubicCapacity',
+      'bodyType',
+      'normsType',
+      'vehicleCategory',
+      'vehicleClassDesc',
+      'rcStatus',
+      'financer',
+      'ownerAddress',
+      'fatherName',
+      'blacklistStatus',
+      'nonUseStatus',
+      'nocDetails',
+      'variant',
+      'permitType',
+    ];
+    for (const key of COERCE_STRING_FIELDS) {
+      if (data[key] !== undefined && data[key] !== null) {
+        data[key] = String(data[key]);
+      }
+    }
+
     const DATE_FIELDS = [
-      'purchaseDate', 'registrationDate',
-      'pucIssueDate', 'pucExpiryDate',
-      'insuranceStartDate', 'insuranceExpiryDate',
-      'fitnessIssueDate', 'fitnessExpiryDate',
-      'taxPaidDate', 'taxExpiryDate',
+      'purchaseDate',
+      'registrationDate',
+      'pucIssueDate',
+      'pucExpiryDate',
+      'insuranceStartDate',
+      'insuranceExpiryDate',
+      'fitnessIssueDate',
+      'fitnessExpiryDate',
+      'taxPaidDate',
+      'taxExpiryDate',
       'permitIssueDate',
       'permitValidFrom',
       'permitExpiryDate',
       'nonUseFrom',
       'nonUseTo',
+      'lastGpsUpdate',
     ];
     for (const f of DATE_FIELDS) {
       if (data[f] !== undefined) {
-        data[f] = data[f] ? new Date(data[f]) : null;
+        if (data[f] === null || data[f] === '') {
+          data[f] = null;
+        } else {
+          const d = new Date(data[f]);
+          data[f] = Number.isNaN(d.getTime()) ? null : d;
+        }
       }
     }
 
-    const FLOAT_FIELDS = ['loadCapacityKg', 'tankCapacityL', 'purchasePrice', 'currentKm', 'taxAmount'];
+    const FLOAT_FIELDS = [
+      'loadCapacityKg',
+      'tankCapacityL',
+      'purchasePrice',
+      'currentKm',
+      'taxAmount',
+      'lastLatitude',
+      'lastLongitude',
+      'lastSpeed',
+      'lastTemperature',
+    ];
     for (const f of FLOAT_FIELDS) {
-      if (data[f] !== undefined) {
-        data[f] = parseFloat(String(data[f])) || 0;
+      if (data[f] === undefined) continue;
+      if (data[f] === null || data[f] === '') {
+        data[f] = null;
+        continue;
       }
+      const n = parseFloat(String(data[f]));
+      data[f] = Number.isNaN(n) ? null : n;
     }
 
-    const INT_FIELDS = [
-      'year',
-      'numTires',
-      'ownerCount',
+    const OPTIONAL_INT_FIELDS = [
       'numberOfCylinders',
       'seatingCapacity',
       'sleeperCapacity',
@@ -395,14 +522,23 @@ export class VehiclesService {
       'wheelbase',
       'unladenWeight',
       'grossVehicleWeight',
+      'ownerCount',
+      'numTires',
     ];
-    for (const f of INT_FIELDS) {
-      if (data[f] !== undefined) {
-        data[f] = parseInt(String(data[f]), 10) || 0;
+    for (const key of OPTIONAL_INT_FIELDS) {
+      if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
+        const n = typeof data[key] === 'string' ? parseInt(data[key], 10) : Number(data[key]);
+        if (Number.isNaN(n)) delete data[key];
+        else data[key] = n;
       }
     }
 
-    // Strip relation fields that Prisma doesn't accept on create/update
+    if (data.year !== undefined && data.year !== null && data.year !== '') {
+      const y = parseInt(String(data.year), 10);
+      if (Number.isNaN(y)) delete data.year;
+      else data.year = y;
+    }
+
     delete data.trips;
     delete data.fuelEntries;
     delete data.maintenance;
@@ -415,6 +551,10 @@ export class VehiclesService {
     delete data.id;
     delete data.createdAt;
     delete data.updatedAt;
+
+    for (const k of Object.keys(data)) {
+      if (!VEHICLE_SCALAR_KEYS.has(k)) delete data[k];
+    }
 
     return data;
   }
