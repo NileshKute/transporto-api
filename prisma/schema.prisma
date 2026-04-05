@@ -306,6 +306,7 @@ model Vehicle {
   type            VehicleType
   make            String        @db.VarChar(50)
   model           String        @db.VarChar(50)
+  variant         String?       @db.VarChar(100)
   year            Int
   fuelType        FuelType      @default(DIESEL)
   status          VehicleStatus @default(ACTIVE)
@@ -313,6 +314,16 @@ model Vehicle {
   chassisNumber   String?       @db.VarChar(50)
   engineNumber    String?       @db.VarChar(50)
   color           String?       @db.VarChar(30)
+  bodyType        String?       @db.VarChar(50)
+  normsType       String?       @db.VarChar(80)
+  cubicCapacity   String?       @db.VarChar(32)
+  numberOfCylinders Int?
+  seatingCapacity Int?
+  sleeperCapacity Int?
+  standingCapacity Int?
+  wheelbase       Int?
+  unladenWeight   Int?
+  grossVehicleWeight Int?
   loadCapacityKg  Float?
   numTires        Int?
   tankCapacityL   Float?
@@ -326,8 +337,15 @@ model Vehicle {
 
   // Vehicle Identity
   ownerName           String?
+  fatherName          String?
+  ownerAddress        String?
+  ownerCount          Int?
   registrationDate    DateTime?
   rcNumber            String?
+  registrationAuthority String?   @db.VarChar(120)
+  vehicleCategory     String?   @db.VarChar(32)
+  vehicleClassDesc    String?   @db.VarChar(160)
+  rcStatus            String?   @db.VarChar(32)
 
   // PUC (Pollution Under Control)
   pucNumber           String?
@@ -342,6 +360,9 @@ model Vehicle {
   insuranceExpiryDate     DateTime?
   insuranceCertificateUrl String?
   insuranceType           String?
+
+  financer                String?   @db.VarChar(120)
+  isFinanced              Boolean   @default(false)
 
   // Fitness Certificate
   fitnessNumber         String?
@@ -359,8 +380,16 @@ model Vehicle {
   // Permit
   permitNumber        String?
   permitType          String?
+  permitIssueDate     DateTime?
+  permitValidFrom     DateTime?
   permitExpiryDate    DateTime?
   permitUrl           String?
+
+  blacklistStatus     String?   @db.VarChar(200)
+  nonUseStatus        String?   @db.VarChar(200)
+  nonUseFrom          DateTime?
+  nonUseTo            DateTime?
+  nocDetails          String?   @db.Text
 
   // GeoTrackers / live GPS snapshot (updated by sync or jobs)
   lastLatitude    Float?

@@ -3,58 +3,89 @@ import { VehicleType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SurepassService } from '../surepass/surepass.service';
 
-/**
- * Prisma `Vehicle` scalar names RC verification may persist (must match schema exactly).
- *
- * Schema reference:
- * - Insurance: insuranceCompany, insurancePolicyNumber, insuranceStartDate, insuranceExpiryDate, insuranceType
- * - PUC: pucNumber, pucIssueDate, pucExpiryDate
- * - Fuel: fuelType (enum FuelType)
- * - Load: loadCapacityKg
- * - Plate: regNumber (normalized separately; not present on SurePass mapped object)
- */
+/** Prisma `Vehicle` scalars RC verification may persist (exact names; see schema). */
 const VEHICLE_RC_MODEL_FIELDS = [
   'make',
   'model',
+  'variant',
   'year',
   'type',
   'fuelType',
   'color',
   'engineNumber',
   'chassisNumber',
-  'ownerName',
   'loadCapacityKg',
+  'ownerName',
+  'fatherName',
+  'ownerAddress',
+  'ownerCount',
   'registrationDate',
+  'registrationAuthority',
   'rcNumber',
+  'vehicleCategory',
+  'vehicleClassDesc',
+  'rcStatus',
+  'bodyType',
+  'normsType',
+  'cubicCapacity',
+  'numberOfCylinders',
+  'seatingCapacity',
+  'sleeperCapacity',
+  'standingCapacity',
+  'wheelbase',
+  'unladenWeight',
+  'grossVehicleWeight',
+  'financer',
+  'isFinanced',
   'insuranceCompany',
   'insurancePolicyNumber',
-  'insuranceStartDate',
   'insuranceExpiryDate',
+  'insuranceStartDate',
   'insuranceType',
   'fitnessExpiryDate',
   'pucNumber',
-  'pucIssueDate',
   'pucExpiryDate',
+  'pucIssueDate',
   'taxExpiryDate',
+  'taxReceiptNumber',
   'permitNumber',
   'permitExpiryDate',
+  'permitType',
+  'permitIssueDate',
+  'permitValidFrom',
+  'blacklistStatus',
+  'nonUseStatus',
+  'nonUseFrom',
+  'nonUseTo',
+  'nocDetails',
 ] as const;
 
-/** Refreshed on every verify (expiry / policy identity). */
+/** Always refresh from government / RC source when a value is present. */
 const ALWAYS_UPDATE_RC_FIELDS: readonly string[] = [
   'fuelType',
+  'rcStatus',
   'insuranceCompany',
   'insurancePolicyNumber',
-  'insuranceStartDate',
   'insuranceExpiryDate',
+  'insuranceStartDate',
   'insuranceType',
   'fitnessExpiryDate',
   'pucNumber',
-  'pucIssueDate',
   'pucExpiryDate',
+  'pucIssueDate',
   'taxExpiryDate',
   'permitNumber',
   'permitExpiryDate',
+  'permitType',
+  'permitIssueDate',
+  'permitValidFrom',
+  'financer',
+  'isFinanced',
+  'blacklistStatus',
+  'nonUseStatus',
+  'nonUseFrom',
+  'nonUseTo',
+  'nocDetails',
 ];
 
 @Injectable()
@@ -253,37 +284,11 @@ export class VehiclesService {
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         this.logger.warn(`Some RC fields failed to save: ${msg}`);
-        const minimalKeys = [
-          'make',
-          'model',
-          'year',
-          'color',
-          'engineNumber',
-          'chassisNumber',
-          'ownerName',
-          'fuelType',
-          'type',
-          'loadCapacityKg',
-          'registrationDate',
-          'rcNumber',
-          'insuranceCompany',
-          'insurancePolicyNumber',
-          'insuranceStartDate',
-          'insuranceExpiryDate',
-          'insuranceType',
-          'fitnessExpiryDate',
-          'pucNumber',
-          'pucIssueDate',
-          'pucExpiryDate',
-          'taxExpiryDate',
-          'permitNumber',
-          'permitExpiryDate',
-          'regNumber',
-        ] as const;
         const safeUpdate: Record<string, unknown> = {};
-        for (const key of minimalKeys) {
+        for (const key of VEHICLE_RC_MODEL_FIELDS) {
           if (updateData[key] !== undefined) safeUpdate[key] = updateData[key];
         }
+        if (updateData.regNumber !== undefined) safeUpdate.regNumber = updateData.regNumber;
         if (Object.keys(safeUpdate).length > 0) {
           await this.prisma.vehicle.update({
             where: { id: vehicleId },
@@ -360,7 +365,11 @@ export class VehiclesService {
       'insuranceStartDate', 'insuranceExpiryDate',
       'fitnessIssueDate', 'fitnessExpiryDate',
       'taxPaidDate', 'taxExpiryDate',
+      'permitIssueDate',
+      'permitValidFrom',
       'permitExpiryDate',
+      'nonUseFrom',
+      'nonUseTo',
     ];
     for (const f of DATE_FIELDS) {
       if (data[f] !== undefined) {
@@ -375,7 +384,18 @@ export class VehiclesService {
       }
     }
 
-    const INT_FIELDS = ['year', 'numTires'];
+    const INT_FIELDS = [
+      'year',
+      'numTires',
+      'ownerCount',
+      'numberOfCylinders',
+      'seatingCapacity',
+      'sleeperCapacity',
+      'standingCapacity',
+      'wheelbase',
+      'unladenWeight',
+      'grossVehicleWeight',
+    ];
     for (const f of INT_FIELDS) {
       if (data[f] !== undefined) {
         data[f] = parseInt(String(data[f]), 10) || 0;

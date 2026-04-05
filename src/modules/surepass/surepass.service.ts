@@ -126,29 +126,31 @@ export class SurepassService {
   }
 
   /**
-   * Full SurePass RC → app shape. Includes preview-only fields; Prisma saves use a subset in VehiclesService.
-   * `fuelType` is enum-safe for DB; `fuelTypeRaw` is the original API string (e.g. PETROL/CNG).
+   * Full SurePass RC → app shape. `fuelType` is Prisma `FuelType`; `fuelTypeRaw` is the API string for UI.
    */
   private mapRCData(data: Record<string, unknown>) {
-    const pn = this.pickStr(data, 'permit_number');
-    const npn = this.pickStr(data, 'national_permit_number');
+    const str = (...keys: string[]) => this.pickStr(data, ...keys);
+
+    const pn = str('permit_number');
+    const npn = str('national_permit_number');
     const permitNum =
       pn && pn !== '0' ? pn : npn && npn.length ? npn : null;
 
-    const gross =
-      data.vehicle_gross_weight != null ? parseInt(String(data.vehicle_gross_weight), 10) : NaN;
-    const unladen = data.unladen_weight != null ? parseInt(String(data.unladen_weight), 10) : NaN;
+    const grossRaw = data.vehicle_gross_weight ?? data.gross_vehicle_weight;
+    const unladenRaw = data.unladen_weight;
+    const gross = grossRaw != null ? parseInt(String(grossRaw), 10) : NaN;
+    const unladen = unladenRaw != null ? parseInt(String(unladenRaw), 10) : NaN;
     const loadCap =
       !Number.isNaN(gross) && !Number.isNaN(unladen) ? gross - unladen : null;
 
     let year: number | null = null;
-    const mfgFmt = this.pickStr(data, 'manufacturing_date_formatted');
+    const mfgFmt = str('manufacturing_date_formatted');
     if (mfgFmt) {
       const y = parseInt(mfgFmt.split('-')[0], 10);
       year = Number.isNaN(y) ? null : y;
     }
     if (year == null) {
-      const mfg = this.pickStr(data, 'manufacturing_date');
+      const mfg = str('manufacturing_date');
       if (mfg) year = this.extractYearFromMfgDate(mfg);
     }
     if (year == null && data.manufacturing_year != null) {
@@ -156,73 +158,97 @@ export class SurepassService {
       year = Number.isNaN(y) ? null : y;
     }
 
-    const classStr =
-      this.pickStr(data, 'vehicle_category_description', 'vehicle_category') ||
-      this.pickStr(data, 'vehicle_class_description', 'class_of_vehicle') ||
+    const classDesc =
+      str('vehicle_category_description') ||
+      str('vehicle_category') ||
+      str('vehicle_class_description') ||
+      str('class_of_vehicle') ||
       '';
 
-    const fuelRaw = this.pickStr(data, 'fuel_type', 'fuel_description');
+    const fuelRaw = str('fuel_type', 'fuel_description');
+
+    const cubicStr =
+      data.cubic_capacity != null && String(data.cubic_capacity).trim() !== ''
+        ? String(data.cubic_capacity).trim()
+        : null;
 
     return {
-      ownerName: this.pickStr(data, 'owner_name', 'current_owner_name'),
-      fatherName: this.pickStr(data, 'father_name'),
-      ownerAddress: this.pickStr(data, 'present_address', 'permanent_address'),
-      make: this.pickStr(data, 'maker_description', 'vehicle_manufacturer_name'),
-      model: this.pickStr(data, 'maker_model', 'model'),
-      vehicleClass: classStr || null,
-      type: classStr ? this.inferVehicleType(classStr) : null,
-      fuelTypeRaw: fuelRaw,
-      fuelType: fuelRaw ? this.mapFuelType(fuelRaw) : null,
-      color: this.pickStr(data, 'color', 'vehicle_colour'),
-      bodyType: this.pickStr(data, 'body_type'),
-      normsType: this.pickStr(data, 'norms_type', 'norms_description', 'emission_norms'),
-      engineNumber: this.pickStr(data, 'vehicle_engine_number', 'engine_number'),
-      chassisNumber: this.pickStr(data, 'vehicle_chasi_number', 'chassis_number', 'chasi_number'),
-      cubicCapacity:
-        data.cubic_capacity != null ? parseFloat(String(data.cubic_capacity)) || null : null,
-      seatingCapacity:
-        data.seat_capacity != null ? parseInt(String(data.seat_capacity), 10) || null : null,
-      numberOfCylinders:
-        data.no_cylinders != null ? parseInt(String(data.no_cylinders), 10) || null : null,
-      wheelbase: data.wheelbase != null ? parseInt(String(data.wheelbase), 10) || null : null,
-      grossVehicleWeight:
-        data.vehicle_gross_weight != null
-          ? parseInt(String(data.vehicle_gross_weight), 10) || null
-          : data.gross_vehicle_weight != null
-            ? parseInt(String(data.gross_vehicle_weight), 10) || null
-            : null,
-      unladenWeight:
-        data.unladen_weight != null ? parseInt(String(data.unladen_weight), 10) || null : null,
-      loadCapacityKg: loadCap,
-      year,
-      registrationDate: this.parseDate(this.pickStr(data, 'registration_date') ?? undefined),
-      registrationAuthority: this.pickStr(data, 'registered_at', 'rto_name'),
-      rcNumber: this.pickStr(data, 'rc_number', 'registration_number', 'reg_no'),
-      financer: this.pickStr(data, 'financer'),
-      financed: data.financed === true,
-      insuranceCompany: this.pickStr(data, 'insurance_company', 'insurer_name', 'insurance_name'),
-      insurancePolicyNumber: this.pickStr(data, 'insurance_policy_number', 'policy_number'),
-      insuranceStartDate: this.parseDate(
-        this.pickStr(data, 'insurance_start_date', 'insurance_from', 'policy_start_date') ?? undefined,
-      ),
-      insuranceType: this.pickStr(data, 'insurance_type', 'policy_type'),
-      insuranceExpiryDate: this.parseDate(this.pickStr(data, 'insurance_upto', 'insurance_validity') ?? undefined),
-      fitnessExpiryDate: this.parseDate(this.pickStr(data, 'fit_up_to', 'fitness_upto') ?? undefined),
-      pucNumber: this.pickStr(data, 'pucc_number', 'puc_number'),
-      pucIssueDate: this.parseDate(
-        this.pickStr(data, 'pucc_issue_date', 'puc_issue_date', 'pucc_from') ?? undefined,
-      ),
-      pucExpiryDate: this.parseDate(this.pickStr(data, 'pucc_upto', 'puc_valid_upto') ?? undefined),
-      taxExpiryDate: this.parseDate(
-        this.pickStr(data, 'tax_upto', 'tax_paid_upto', 'road_tax_upto') ?? undefined,
-      ),
-      permitNumber: permitNum,
-      permitExpiryDate: this.parseDate(
-        this.pickStr(data, 'permit_valid_upto', 'national_permit_upto') ?? undefined,
-      ),
-      rcStatus: this.pickStr(data, 'rc_status', 'vehicle_status'),
+      ownerName: str('owner_name', 'current_owner_name'),
+      fatherName: str('father_name'),
+      ownerAddress: str('present_address', 'permanent_address'),
       ownerCount:
         data.owner_number != null ? parseInt(String(data.owner_number), 10) || null : null,
+
+      make: str('maker_description', 'vehicle_manufacturer_name'),
+      model: str('maker_model', 'model'),
+      variant: str('variant'),
+      fuelTypeRaw: fuelRaw,
+      fuelType: this.mapFuelType(fuelRaw),
+      color: str('color', 'vehicle_colour'),
+      engineNumber: str('vehicle_engine_number', 'engine_number'),
+      chassisNumber: str('vehicle_chasi_number', 'chassis_number', 'chasi_number'),
+
+      bodyType: str('body_type'),
+      normsType: str('norms_type', 'norms_description', 'emission_norms'),
+      cubicCapacity: cubicStr,
+      numberOfCylinders:
+        data.no_cylinders != null ? parseInt(String(data.no_cylinders), 10) || null : null,
+      seatingCapacity:
+        data.seat_capacity != null ? parseInt(String(data.seat_capacity), 10) || null : null,
+      sleeperCapacity:
+        data.sleeper_capacity != null ? parseInt(String(data.sleeper_capacity), 10) || null : null,
+      standingCapacity:
+        data.standing_capacity != null ? parseInt(String(data.standing_capacity), 10) || null : null,
+      wheelbase: data.wheelbase != null ? parseInt(String(data.wheelbase), 10) || null : null,
+      unladenWeight: !Number.isNaN(unladen) ? unladen : null,
+      grossVehicleWeight: !Number.isNaN(gross) ? gross : null,
+      loadCapacityKg: loadCap,
+
+      year,
+      registrationDate: this.parseDate(str('registration_date') ?? undefined),
+      registrationAuthority: str('registered_at', 'rto_name'),
+      rcNumber: str('rc_number', 'registration_number', 'reg_no'),
+      vehicleCategory: str('vehicle_category'),
+      vehicleClassDesc: str(
+        'vehicle_category_description',
+        'vehicle_class_description',
+        'class_of_vehicle',
+      ),
+      rcStatus: str('rc_status', 'vehicle_status'),
+
+      financer: str('financer'),
+      isFinanced: typeof data.financed === 'boolean' ? data.financed : null,
+
+      insuranceCompany: str('insurance_company', 'insurer_name', 'insurance_name'),
+      insurancePolicyNumber: str('insurance_policy_number', 'policy_number'),
+      insuranceExpiryDate: this.parseDate(str('insurance_upto', 'insurance_validity') ?? undefined),
+      insuranceStartDate: this.parseDate(
+        str('insurance_start_date', 'insurance_from', 'policy_start_date') ?? undefined,
+      ),
+      insuranceType: str('insurance_type', 'policy_type'),
+
+      fitnessExpiryDate: this.parseDate(str('fit_up_to', 'fitness_upto') ?? undefined),
+
+      pucNumber: str('pucc_number', 'puc_number'),
+      pucExpiryDate: this.parseDate(str('pucc_upto', 'puc_valid_upto') ?? undefined),
+      pucIssueDate: this.parseDate(str('pucc_issue_date', 'puc_issue_date', 'pucc_from') ?? undefined),
+
+      taxReceiptNumber: str('tax_receipt_number', 'tax_receipt_no', 'road_tax_receipt'),
+      taxExpiryDate: this.parseDate(str('tax_upto', 'tax_paid_upto', 'road_tax_upto') ?? undefined),
+
+      permitNumber: permitNum,
+      permitExpiryDate: this.parseDate(str('permit_valid_upto', 'national_permit_upto') ?? undefined),
+      permitType: str('permit_type'),
+      permitIssueDate: this.parseDate(str('permit_issue_date') ?? undefined),
+      permitValidFrom: this.parseDate(str('permit_valid_from') ?? undefined),
+
+      blacklistStatus: str('blacklist_status'),
+      nonUseStatus: str('non_use_status'),
+      nonUseFrom: this.parseDate(str('non_use_from') ?? undefined),
+      nonUseTo: this.parseDate(str('non_use_to') ?? undefined),
+      nocDetails: str('noc_details'),
+
+      type: classDesc ? this.inferVehicleType(classDesc) : null,
     };
   }
 
@@ -237,6 +263,7 @@ export class SurepassService {
   }
 
   private extractYearFromMfgDate(dateStr: string): number | null {
+    if (!dateStr || typeof dateStr !== 'string') return null;
     const parts = dateStr.split('/');
     if (parts.length === 2) {
       const y = parseInt(parts[1], 10);
@@ -302,18 +329,20 @@ export class SurepassService {
   }
 
   /**
-   * Maps SurePass fuel strings to Prisma `FuelType` (no LPG enum — LPG maps to CNG).
-   * Order matters: PETROL/CNG must resolve to CNG, not PETROL.
+   * Maps SurePass fuel strings to Prisma `FuelType`. Combined fuels checked first; default DIESEL.
+   * LPG → CNG (no LPG in enum).
    */
-  private mapFuelType(description: string): FuelType | null {
-    const u = description.toUpperCase();
-    if (u.includes('PETROL') && u.includes('CNG')) return FuelType.CNG;
-    if (u.includes('CNG')) return FuelType.CNG;
-    if (u.includes('LPG')) return FuelType.CNG;
-    if (u.includes('DIESEL')) return FuelType.DIESEL;
-    if (u.includes('PETROL')) return FuelType.PETROL;
-    if (u.includes('ELECTRIC') || u.includes('BATTERY')) return FuelType.ELECTRIC;
-    if (u.includes('HYBRID')) return FuelType.HYBRID;
-    return null;
+  private mapFuelType(raw: string | null | undefined): FuelType {
+    if (!raw || !String(raw).trim()) return FuelType.DIESEL;
+    const upper = String(raw).toUpperCase().trim();
+    if (upper.includes('PETROL') && upper.includes('CNG')) return FuelType.CNG;
+    if (upper.includes('DIESEL') && upper.includes('CNG')) return FuelType.CNG;
+    if (upper.includes('CNG')) return FuelType.CNG;
+    if (upper.includes('ELECTRIC') || upper.includes('BATTERY')) return FuelType.ELECTRIC;
+    if (upper.includes('HYBRID')) return FuelType.HYBRID;
+    if (upper.includes('PETROL')) return FuelType.PETROL;
+    if (upper.includes('DIESEL')) return FuelType.DIESEL;
+    if (upper.includes('LPG')) return FuelType.CNG;
+    return FuelType.DIESEL;
   }
 }
