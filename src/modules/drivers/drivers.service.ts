@@ -13,6 +13,7 @@ export class DriversService {
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
+        { nickname: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search } },
         { licenseNumber: { contains: search, mode: 'insensitive' } },
       ];
@@ -60,6 +61,18 @@ export class DriversService {
 
   private parseDriverDto(dto: any) {
     const data = { ...dto };
+    delete data.id;
+    delete data.assignments;
+    delete data.trips;
+    delete data.shifts;
+    delete data.whatsappMessages;
+    delete data.attendances;
+    delete data.ledgerEntries;
+    delete data.salaryRecords;
+    delete data.dailyTripLogs;
+    delete data.user;
+    delete data.createdAt;
+    delete data.updatedAt;
 
     if (data.experience !== undefined) {
       data.experience = parseInt(String(data.experience).replace(/[^0-9]/g, ''), 10) || 0;
@@ -78,6 +91,10 @@ export class DriversService {
     }
     if (data.joiningDate !== undefined) {
       data.joiningDate = data.joiningDate ? new Date(data.joiningDate) : null;
+    }
+    if (data.nickname !== undefined) {
+      const n = String(data.nickname).trim();
+      data.nickname = n || null;
     }
 
     return data;

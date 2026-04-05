@@ -24,6 +24,7 @@ import { BpclModule } from './modules/bpcl/bpcl.module';
 import { VehicleMaintenanceModule } from './modules/vehicle-maintenance/vehicle-maintenance.module';
 import { GpsModule } from './modules/gps/gps.module';
 import { SurepassModule } from './modules/surepass/surepass.module';
+import { LocationsModule } from './modules/locations/locations.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { SurepassModule } from './modules/surepass/surepass.module';
     BpclModule,
     VehicleMaintenanceModule,
     GpsModule,
+    LocationsModule,
     PermissionsModule,
   ],
   providers: [

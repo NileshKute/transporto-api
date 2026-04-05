@@ -315,7 +315,19 @@ export class GpsService {
     const vehicles = await this.prisma.gpsLive.findMany({
       include: {
         vehicle: {
-          select: { id: true, regNumber: true, make: true, model: true },
+          select: {
+            id: true,
+            regNumber: true,
+            make: true,
+            model: true,
+            assignments: {
+              where: { isCurrent: true },
+              take: 1,
+              select: {
+                driver: { select: { name: true, nickname: true } },
+              },
+            },
+          },
         },
       },
       orderBy: { regNumber: 'asc' },

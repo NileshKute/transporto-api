@@ -849,6 +849,84 @@ async function main() {
 
   console.log('✅ Notifications created: 5 notifications');
 
+  // ==================== LOCATION MASTER ====================
+  const DEFAULT_LOCATIONS: Array<{
+    name: string;
+    shortName?: string;
+    type: string;
+    city?: string;
+    state?: string;
+  }> = [
+    { name: 'Palak', shortName: 'Palak', type: 'PICKUP', city: 'Pune' },
+    { name: 'Sintree', shortName: 'Sintree', type: 'PICKUP', city: 'Pune' },
+    { name: 'Mullam Naya', shortName: 'Mullam Naya', type: 'PICKUP', city: 'Pune' },
+    { name: 'Zepto', shortName: 'Zepto', type: 'CLIENT', city: 'Pune' },
+    { name: 'Zepto Cold', shortName: 'Zepto Cold', type: 'CLIENT', city: 'Pune' },
+    { name: 'Swiggy', shortName: 'Swiggy', type: 'CLIENT', city: 'Pune' },
+    { name: 'Blinkit', shortName: 'Blinkit', type: 'CLIENT', city: 'Pune' },
+    { name: 'BigBasket', shortName: 'BigBasket', type: 'CLIENT', city: 'Pune' },
+    { name: 'BigBasket Chakan', shortName: 'BB Chakan', type: 'CLIENT', city: 'Chakan' },
+    { name: 'Amazon', shortName: 'Amazon', type: 'CLIENT', city: 'Pune' },
+    { name: "D'Lecta", shortName: 'DLecta', type: 'CLIENT', city: 'Pune' },
+    { name: 'Pluckk', shortName: 'Pluckk', type: 'CLIENT', city: 'Navi Mumbai' },
+    { name: 'Cogent Foods', shortName: 'Cogent', type: 'CLIENT', city: 'Pune' },
+    { name: 'Fruit FM', shortName: 'FruitFM', type: 'CLIENT', city: 'Pune' },
+    { name: 'Kisan Konnect', shortName: 'KK', type: 'CLIENT', city: 'Pune' },
+    { name: 'YC Fresh', shortName: 'YCF', type: 'CLIENT', city: 'Pune' },
+    { name: 'Smoor', shortName: 'Smoor', type: 'CLIENT', city: 'Pune' },
+    { name: 'Lab N Life', shortName: 'LNL', type: 'CLIENT', city: 'Pune' },
+    { name: 'Suyog Food Products', shortName: 'Suyog', type: 'CLIENT', city: 'Pune' },
+    { name: 'Anusaya Fresh', shortName: 'Anusaya', type: 'CLIENT', city: 'Pune' },
+    { name: 'Pune', type: 'CITY', city: 'Pune', state: 'Maharashtra' },
+    { name: 'Mumbai', type: 'CITY', city: 'Mumbai', state: 'Maharashtra' },
+    { name: 'Navi Mumbai', type: 'CITY', city: 'Navi Mumbai', state: 'Maharashtra' },
+    { name: 'Thane', type: 'CITY', city: 'Thane', state: 'Maharashtra' },
+    { name: 'Chakan', type: 'CITY', city: 'Chakan', state: 'Maharashtra' },
+    { name: 'Bhiwandi', type: 'CITY', city: 'Bhiwandi', state: 'Maharashtra' },
+    { name: 'Panvel', type: 'CITY', city: 'Panvel', state: 'Maharashtra' },
+    { name: 'Taloja', type: 'CITY', city: 'Taloja', state: 'Maharashtra' },
+    { name: 'Nashik', type: 'CITY', city: 'Nashik', state: 'Maharashtra' },
+    {
+      name: 'OM Logistics Khed',
+      shortName: 'OM Logistics',
+      type: 'WAREHOUSE',
+      city: 'Pune',
+    },
+    {
+      name: 'Cryo Container Chakan',
+      shortName: 'Cryo Chakan',
+      type: 'WAREHOUSE',
+      city: 'Chakan',
+    },
+    {
+      name: 'Arc Glory Hadapsar',
+      shortName: 'Arc Glory',
+      type: 'WAREHOUSE',
+      city: 'Pune',
+    },
+  ];
+
+  for (const row of DEFAULT_LOCATIONS) {
+    await prisma.location.upsert({
+      where: { name: row.name },
+      update: {
+        shortName: row.shortName ?? null,
+        type: row.type,
+        city: row.city ?? null,
+        state: row.state ?? null,
+        isActive: true,
+      },
+      create: {
+        name: row.name,
+        shortName: row.shortName ?? null,
+        type: row.type,
+        city: row.city ?? null,
+        state: row.state ?? null,
+      },
+    });
+  }
+  console.log(`✅ Location master: ${DEFAULT_LOCATIONS.length} locations (upserted)\n`);
+
   // ==================== SETTINGS ====================
   await prisma.setting.createMany({
     data: [

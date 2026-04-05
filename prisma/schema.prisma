@@ -25,6 +25,7 @@ enum VehicleType {
   MINI_TRUCK
   TRAILER
   REEFER_TRUCK
+  REEFER_PICKUP
   TANKER
   PICKUP
   VAN
@@ -426,6 +427,7 @@ model Driver {
   userId           String?      @unique
   user             User?        @relation(fields: [userId], references: [id])
   name             String       @db.VarChar(100)
+  nickname         String?      @db.VarChar(100)
   phone            String       @unique @db.VarChar(20)
   altPhone         String?      @db.VarChar(20)
   licenseNumber    String       @unique @db.VarChar(30)
@@ -918,9 +920,30 @@ model Client {
   invoices         Invoice[]
   clientVehicles   ClientVehicle[]
   gpsShareSessions GpsShareSession[]
+  locations        Location[]
 
   @@index([isActive])
   @@map("clients")
+}
+
+model Location {
+  id         String   @id @default(uuid())
+  name       String   @unique
+  shortName  String?
+  type       String   @default("GENERAL")
+  city       String?
+  state      String?
+  address    String?
+  clientId   String?
+  client     Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([name])
+  @@index([type])
+  @@index([isActive])
+  @@map("locations")
 }
 
 model ClientVehicle {

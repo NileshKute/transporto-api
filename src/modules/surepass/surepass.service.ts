@@ -165,6 +165,9 @@ export class SurepassService {
       str('class_of_vehicle') ||
       '';
 
+    const makerModelForType = str('maker_model', 'model') || '';
+    const bodyTypeForType = str('body_type') || '';
+
     const fuelRaw = str('fuel_type', 'fuel_description');
 
     const cubicStr =
@@ -248,7 +251,10 @@ export class SurepassService {
       nonUseTo: this.parseDate(str('non_use_to') ?? undefined),
       nocDetails: str('noc_details'),
 
-      type: classDesc ? this.inferVehicleType(classDesc) : null,
+      type:
+        classDesc || makerModelForType || bodyTypeForType
+          ? this.inferVehicleType(classDesc, makerModelForType, bodyTypeForType)
+          : null,
     };
   }
 
@@ -308,7 +314,17 @@ export class SurepassService {
     return Number.isNaN(t) ? null : new Date(t);
   }
 
-  private inferVehicleType(vehicleClass: string): VehicleType {
+  private inferVehicleType(
+    vehicleClass: string,
+    makerModel = '',
+    bodyType = '',
+  ): VehicleType {
+    const mmU = makerModel.toUpperCase();
+    const btU = bodyType.toUpperCase();
+    const bodyIsReefer = btU.includes('REFER') || btU.includes('REEFER');
+    if (mmU.includes('PICKUP') && bodyIsReefer) return VehicleType.REEFER_PICKUP;
+    if (bodyIsReefer) return VehicleType.REEFER_TRUCK;
+
     const cls = vehicleClass.toLowerCase();
     if (cls.includes('motor car') || (cls.includes('lmv') && cls.includes('car')))
       return VehicleType.VAN;
