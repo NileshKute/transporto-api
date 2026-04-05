@@ -3,7 +3,16 @@ import { VehicleType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SurepassService } from '../surepass/surepass.service';
 
-/** Prisma `Vehicle` columns that RC verification may write (see schema). */
+/**
+ * Prisma `Vehicle` scalar names RC verification may persist (must match schema exactly).
+ *
+ * Schema reference:
+ * - Insurance: insuranceCompany, insurancePolicyNumber, insuranceStartDate, insuranceExpiryDate, insuranceType
+ * - PUC: pucNumber, pucIssueDate, pucExpiryDate
+ * - Fuel: fuelType (enum FuelType)
+ * - Load: loadCapacityKg
+ * - Plate: regNumber (normalized separately; not present on SurePass mapped object)
+ */
 const VEHICLE_RC_MODEL_FIELDS = [
   'make',
   'model',
@@ -19,9 +28,12 @@ const VEHICLE_RC_MODEL_FIELDS = [
   'rcNumber',
   'insuranceCompany',
   'insurancePolicyNumber',
+  'insuranceStartDate',
   'insuranceExpiryDate',
+  'insuranceType',
   'fitnessExpiryDate',
   'pucNumber',
+  'pucIssueDate',
   'pucExpiryDate',
   'taxExpiryDate',
   'permitNumber',
@@ -32,9 +44,12 @@ const VEHICLE_RC_MODEL_FIELDS = [
 const ALWAYS_UPDATE_RC_FIELDS: readonly string[] = [
   'insuranceCompany',
   'insurancePolicyNumber',
+  'insuranceStartDate',
   'insuranceExpiryDate',
+  'insuranceType',
   'fitnessExpiryDate',
   'pucNumber',
+  'pucIssueDate',
   'pucExpiryDate',
   'taxExpiryDate',
   'permitNumber',
@@ -180,11 +195,22 @@ export class VehiclesService {
     }
 
     const mapped = result.data as Record<string, unknown>;
+    const modelFieldSet = new Set<string>(VEHICLE_RC_MODEL_FIELDS as readonly string[]);
+
+    this.logger.log('RC mapped fields: ' + JSON.stringify(Object.keys(mapped)));
+
+    const skippedNotInModel = Object.keys(mapped).filter((k) => !modelFieldSet.has(k));
+    this.logger.log('Fields skipped (not in model): ' + JSON.stringify(skippedNotInModel));
+
+    const skipReasons: { field: string; reason: string }[] = [];
     const updateData: Record<string, unknown> = {};
 
     for (const key of VEHICLE_RC_MODEL_FIELDS) {
       const newValue = mapped[key];
-      if (newValue === null || newValue === undefined || newValue === '') continue;
+      if (newValue === null || newValue === undefined || newValue === '') {
+        skipReasons.push({ field: key, reason: 'value was null or empty' });
+        continue;
+      }
 
       const currentValue = (vehicle as Record<string, unknown>)[key];
 
@@ -200,9 +226,19 @@ export class VehiclesService {
           currentValue === 0;
         if (isEmpty) {
           updateData[key] = newValue;
+        } else {
+          skipReasons.push({ field: key, reason: 'existing value kept (smart fill)' });
         }
       }
     }
+
+    const normalizedReg = vehicle.regNumber.replace(/[\s\-]/g, '').toUpperCase();
+    if (normalizedReg !== vehicle.regNumber) {
+      updateData.regNumber = normalizedReg;
+    }
+
+    this.logger.log('Fields being saved: ' + JSON.stringify(Object.keys(updateData)));
+    this.logger.log('RC field skip reasons: ' + JSON.stringify(skipReasons));
 
     let fieldsUpdated: string[] = [];
 
@@ -224,10 +260,24 @@ export class VehiclesService {
           'engineNumber',
           'chassisNumber',
           'ownerName',
+          'fuelType',
+          'type',
+          'loadCapacityKg',
+          'registrationDate',
+          'rcNumber',
+          'insuranceCompany',
+          'insurancePolicyNumber',
+          'insuranceStartDate',
           'insuranceExpiryDate',
+          'insuranceType',
           'fitnessExpiryDate',
-          'pucExpiryDate',
           'pucNumber',
+          'pucIssueDate',
+          'pucExpiryDate',
+          'taxExpiryDate',
+          'permitNumber',
+          'permitExpiryDate',
+          'regNumber',
         ] as const;
         const safeUpdate: Record<string, unknown> = {};
         for (const key of minimalKeys) {
@@ -298,6 +348,10 @@ export class VehiclesService {
 
   private parseVehicleDto(dto: any) {
     const data = { ...dto };
+
+    if (data.regNumber !== undefined && data.regNumber !== null && data.regNumber !== '') {
+      data.regNumber = String(data.regNumber).replace(/[\s\-]/g, '').toUpperCase();
+    }
 
     const DATE_FIELDS = [
       'purchaseDate', 'registrationDate',

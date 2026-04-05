@@ -202,9 +202,16 @@ export class SurepassService {
       financed: data.financed === true,
       insuranceCompany: this.pickStr(data, 'insurance_company', 'insurer_name', 'insurance_name'),
       insurancePolicyNumber: this.pickStr(data, 'insurance_policy_number', 'policy_number'),
+      insuranceStartDate: this.parseDate(
+        this.pickStr(data, 'insurance_start_date', 'insurance_from', 'policy_start_date') ?? undefined,
+      ),
+      insuranceType: this.pickStr(data, 'insurance_type', 'policy_type'),
       insuranceExpiryDate: this.parseDate(this.pickStr(data, 'insurance_upto', 'insurance_validity') ?? undefined),
       fitnessExpiryDate: this.parseDate(this.pickStr(data, 'fit_up_to', 'fitness_upto') ?? undefined),
       pucNumber: this.pickStr(data, 'pucc_number', 'puc_number'),
+      pucIssueDate: this.parseDate(
+        this.pickStr(data, 'pucc_issue_date', 'puc_issue_date', 'pucc_from') ?? undefined,
+      ),
       pucExpiryDate: this.parseDate(this.pickStr(data, 'pucc_upto', 'puc_valid_upto') ?? undefined),
       taxExpiryDate: this.parseDate(
         this.pickStr(data, 'tax_upto', 'tax_paid_upto', 'road_tax_upto') ?? undefined,
@@ -294,13 +301,19 @@ export class SurepassService {
     return VehicleType.TRUCK;
   }
 
+  /**
+   * Maps SurePass fuel strings to Prisma `FuelType` (no LPG enum — LPG maps to CNG).
+   * Order matters: PETROL/CNG must resolve to CNG, not PETROL.
+   */
   private mapFuelType(description: string): FuelType | null {
     const u = description.toUpperCase();
-    if (u.includes('PETROL')) return FuelType.PETROL;
+    if (u.includes('PETROL') && u.includes('CNG')) return FuelType.CNG;
     if (u.includes('CNG')) return FuelType.CNG;
+    if (u.includes('LPG')) return FuelType.CNG;
+    if (u.includes('DIESEL')) return FuelType.DIESEL;
+    if (u.includes('PETROL')) return FuelType.PETROL;
     if (u.includes('ELECTRIC') || u.includes('BATTERY')) return FuelType.ELECTRIC;
     if (u.includes('HYBRID')) return FuelType.HYBRID;
-    if (u.includes('DIESEL')) return FuelType.DIESEL;
     return null;
   }
 }
