@@ -1,13 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DriverLedgerService } from './driver-ledger.service';
+import {
+  classifyLedgerSide,
+  excludeFromNetTotals,
+} from './ledger-entry-classification';
 import * as PDFDocument from 'pdfkit';
 import * as path from 'path';
 import * as fs from 'fs';
 
 const COMPANY = {
   name: 'G K ENTERPRISE',
-  type: 'FLEET OWNERS & TRANSPORT CONTRACTORS',
+  type: 'FLEET OWNERS & COLD CHAIN LOGISTICS SPECIALISTS',
   address:
     'Office 402, SHREE GANESH CHS LTD, PLOT NO 151, PHASE II, NAVDE, TALOJA, PANVEL, NAVI MUMBAI 410208',
   mobile: '+91 9324540988',
@@ -33,9 +37,6 @@ const MONTHS = [
   '', 'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
-
-const CREDIT_TYPES = ['EXTRA_DUTY', 'BONUS', 'SALARY'];
-const DEBIT_TYPES = ['ADVANCE_RECOVERY', 'PENALTY', 'FOOD', 'FUEL_ADVANCE', 'TOLL', 'MAINTENANCE', 'ADVANCE'];
 
 function fmtCurrency(n: number): string {
   return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -97,10 +98,17 @@ function getPeriodTitle(filterType: string, params: any): string {
   }
 }
 
-function classifyEntry(type: string, amount: number): 'credit' | 'debit' {
-  if (CREDIT_TYPES.includes(type)) return 'credit';
-  if (DEBIT_TYPES.includes(type)) return 'debit';
-  return amount >= 0 ? 'credit' : 'debit';
+function formatDriverLedgerName(driver: { name: string; nickname?: string | null }): string {
+  const nick = driver.nickname?.trim();
+  return nick ? `${nick} (${driver.name})` : driver.name;
+}
+
+function ledgerTypeLabel(entry: { type: string; category?: string | null; description?: string | null }): string {
+  const blob = `${entry.category ?? ''} ${entry.description ?? ''}`.toLowerCase();
+  if (entry.type === 'ADVANCE' && blob.includes('salary against advance')) {
+    return 'Salary Against Advance';
+  }
+  return entry.type.replace(/_/g, ' ');
 }
 
 const ML = 40;
@@ -141,9 +149,11 @@ export class DriverLedgerPdfService {
 
     for (const e of entries) {
       const amt = Math.abs(Number(e.amount));
-      const side = classifyEntry(e.type, Number(e.amount));
-      if (side === 'credit') totalCredits += amt;
-      else totalDebits += amt;
+      const side = classifyLedgerSide(e);
+      if (!excludeFromNetTotals(e)) {
+        if (side === 'credit') totalCredits += amt;
+        else totalDebits += amt;
+      }
 
       if (e.isPaid) {
         paidCount++;
@@ -217,7 +227,7 @@ export class DriverLedgerPdfService {
 
     // DRIVER NAME + PERIOD HEADING
     doc.fillColor(C.navy).font('Helvetica-Bold').fontSize(16)
-      .text(driver.name, ML, y, { width: CW, align: 'center' });
+      .text(formatDriverLedgerName(driver), ML, y, { width: CW, align: 'center' });
     y += 22;
 
     doc.fillColor(C.gray).font('Helvetica').fontSize(12)
@@ -281,7 +291,7 @@ export class DriverLedgerPdfService {
       }
 
       const amt = Number(entry.amount);
-      const side = classifyEntry(entry.type, amt);
+      const side = classifyLedgerSide(entry);
       const textY = y + descPad;
 
       cx = ML;
@@ -292,7 +302,7 @@ export class DriverLedgerPdfService {
       doc.text(descText, cx + 4, textY, { width: colDesc - 10, align: 'left' });
       cx += colDesc;
       doc.font('Helvetica').fontSize(6.5).fillColor(C.gray);
-      doc.text(entry.type.replace(/_/g, ' '), cx + 3, textY, { width: colType - 3, align: 'left' });
+      doc.text(ledgerTypeLabel(entry), cx + 3, textY, { width: colType - 3, align: 'left' });
       cx += colType;
       doc.font('Helvetica').fontSize(8).fillColor(C.black);
       doc.text(side === 'credit' ? fmtCurrency(Math.abs(amt)) : '', cx, textY, { width: colCredit - 4, align: 'right' });
@@ -353,7 +363,7 @@ export class DriverLedgerPdfService {
     doc.rect(ML, y, CW, netRowH).fill(C.navy);
     doc.restore();
     doc.font('Helvetica-Bold').fontSize(11).fillColor(C.white);
-    doc.text('Net (Credits - Debits)', ML + 6, y + 7, { width: CW * 0.6 });
+    doc.text('Net (Credits − Debits)', ML + 6, y + 7, { width: CW * 0.6 });
     doc.text(fmtCurrency(net), ML + CW * 0.6, y + 7, { width: CW * 0.4 - 6, align: 'right' });
     doc.save();
     doc.lineWidth(1).strokeColor(C.navy).rect(ML, y, CW, netRowH).stroke();

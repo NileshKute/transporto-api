@@ -5,16 +5,11 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-
-const CREDIT_TYPES = ['EXTRA_DUTY', 'BONUS'];
-const DEBIT_TYPES = ['ADVANCE_RECOVERY', 'PENALTY', 'FOOD', 'FUEL_ADVANCE', 'TOLL', 'MAINTENANCE'];
-
-function classifyEntry(type: string, amount: number): 'credit' | 'debit' {
-  if (CREDIT_TYPES.includes(type)) return 'credit';
-  if (DEBIT_TYPES.includes(type)) return 'debit';
-  if (type === 'OTHER') return amount >= 0 ? 'credit' : 'debit';
-  return 'debit';
-}
+import {
+  classifyLedgerSide,
+  excludeFromNetTotals,
+  normalizeLedgerCreateType,
+} from './ledger-entry-classification';
 
 @Injectable()
 export class DriverLedgerService {
@@ -53,7 +48,7 @@ export class DriverLedgerService {
         where,
         skip,
         take: Number(limit),
-        include: { driver: { select: { name: true, phone: true, employeeCode: true } } },
+        include: { driver: { select: { name: true, nickname: true, phone: true, employeeCode: true } } },
         orderBy: { date: 'desc' },
       }),
       this.prisma.driverLedger.count({ where }),
@@ -71,7 +66,7 @@ export class DriverLedgerService {
   async findOneEntry(id: string) {
     const entry = await this.prisma.driverLedger.findUnique({
       where: { id },
-      include: { driver: { select: { name: true, phone: true, employeeCode: true } } },
+      include: { driver: { select: { name: true, nickname: true, phone: true, employeeCode: true } } },
     });
     if (!entry) throw new NotFoundException('Ledger entry not found');
     return entry;
@@ -88,15 +83,35 @@ export class DriverLedgerService {
     const entryYear = dto.year ?? date.getFullYear();
     const paid = dto.isPaid === true || dto.isPaid === 'true';
 
+    const rawType = (dto.type || '').toString().toUpperCase().trim();
+    const normalizedType = normalizeLedgerCreateType(dto);
+    const classifyInput = {
+      type:
+        rawType === 'OTHER_CREDIT' || rawType === 'OTHER_DEBIT' ? rawType : normalizedType,
+      amount: dto.amount,
+      category: dto.category,
+      description: dto.description,
+      isCredit:
+        rawType === 'OTHER_CREDIT'
+          ? true
+          : rawType === 'OTHER_DEBIT'
+            ? false
+            : dto.isCredit,
+    };
+    const isCreditResolved =
+      dto.isCredit !== undefined && dto.isCredit !== null
+        ? Boolean(dto.isCredit)
+        : classifyLedgerSide(classifyInput) === 'credit';
+
     const entry = await this.prisma.driverLedger.create({
       data: {
         driverId: dto.driverId,
         date,
-        type: dto.type,
-        category: dto.category || dto.type,
+        type: normalizedType as any,
+        category: dto.category || normalizedType,
         description: dto.description || '',
         amount: new Prisma.Decimal(Number(dto.amount) || 0),
-        isCredit: dto.isCredit ?? this.isTypeCredit(dto.type),
+        isCredit: isCreditResolved,
         tripId: dto.tripId || null,
         approvedBy: dto.approvedBy || null,
         notes: dto.notes || null,
@@ -109,7 +124,7 @@ export class DriverLedgerService {
         paidBy: paid ? (dto.paidBy || null) : null,
         paidNotes: paid ? (dto.paidNotes || null) : null,
       },
-      include: { driver: { select: { name: true, phone: true } } },
+      include: { driver: { select: { name: true, nickname: true, phone: true } } },
     });
 
     return entry;
@@ -121,7 +136,33 @@ export class DriverLedgerService {
 
     const data: any = {};
     if (dto.date !== undefined) data.date = new Date(dto.date);
-    if (dto.type !== undefined) data.type = dto.type;
+    if (dto.type !== undefined) {
+      const normalizedType = normalizeLedgerCreateType({
+        type: dto.type,
+        category: dto.category ?? existing.category ?? undefined,
+        description: dto.description ?? existing.description ?? undefined,
+      });
+      data.type = normalizedType;
+      if (dto.isCredit === undefined) {
+        const rawType = (dto.type || '').toString().toUpperCase().trim();
+        data.isCredit =
+          classifyLedgerSide({
+            type:
+              rawType === 'OTHER_CREDIT' || rawType === 'OTHER_DEBIT'
+                ? rawType
+                : normalizedType,
+            amount: dto.amount !== undefined ? dto.amount : existing.amount,
+            category: dto.category ?? existing.category,
+            description: dto.description ?? existing.description,
+            isCredit:
+              rawType === 'OTHER_CREDIT'
+                ? true
+                : rawType === 'OTHER_DEBIT'
+                  ? false
+                  : undefined,
+          }) === 'credit';
+      }
+    }
     if (dto.category !== undefined) data.category = dto.category;
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.amount !== undefined) data.amount = new Prisma.Decimal(Number(dto.amount));
@@ -133,7 +174,7 @@ export class DriverLedgerService {
     return this.prisma.driverLedger.update({
       where: { id },
       data,
-      include: { driver: { select: { name: true, phone: true } } },
+      include: { driver: { select: { name: true, nickname: true, phone: true } } },
     });
   }
 
@@ -156,7 +197,7 @@ export class DriverLedgerService {
         paidBy: dto.paidBy,
         paidNotes: dto.paidNotes || null,
       },
-      include: { driver: { select: { name: true, phone: true } } },
+      include: { driver: { select: { name: true, nickname: true, phone: true } } },
     });
   }
 
@@ -174,7 +215,15 @@ export class DriverLedgerService {
   async getDriverSummary(driverId: string, query: any) {
     const driver = await this.prisma.driver.findFirst({
       where: { id: driverId, isDeleted: false },
-      select: { id: true, name: true, phone: true, employeeCode: true, baseSalary: true, salary: true },
+      select: {
+        id: true,
+        name: true,
+        nickname: true,
+        phone: true,
+        employeeCode: true,
+        baseSalary: true,
+        salary: true,
+      },
     });
     if (!driver) throw new NotFoundException('Driver not found');
 
@@ -245,7 +294,7 @@ export class DriverLedgerService {
     const entries = await this.prisma.driverLedger.findMany({
       where,
       orderBy: { date: 'asc' },
-      include: { driver: { select: { name: true, phone: true, employeeCode: true } } },
+      include: { driver: { select: { name: true, nickname: true, phone: true, employeeCode: true } } },
     });
 
     return {
@@ -259,8 +308,9 @@ export class DriverLedgerService {
     let paidDebits = 0, unpaidDebits = 0;
 
     for (const e of entries) {
+      if (excludeFromNetTotals(e)) continue;
       const amt = Math.abs(Number(e.amount));
-      const side = classifyEntry(e.type, Number(e.amount));
+      const side = classifyLedgerSide(e);
 
       if (side === 'credit') {
         if (e.isPaid) paidCredits += amt;
@@ -373,7 +423,7 @@ export class DriverLedgerService {
         where,
         skip,
         take: Number(limit),
-        include: { driver: { select: { name: true, phone: true, employeeCode: true } } },
+        include: { driver: { select: { name: true, nickname: true, phone: true, employeeCode: true } } },
         orderBy: [{ year: 'desc' }, { month: 'desc' }],
       }),
       this.prisma.driverSalary.count({ where }),
@@ -425,37 +475,47 @@ export class DriverLedgerService {
     let otherDebits = 0;
 
     for (const e of entries) {
+      if (e.type === 'SALARY') continue;
       const amt = Math.abs(Number(e.amount));
-      const side = classifyEntry(e.type, Number(e.amount));
+      const side = classifyLedgerSide(e);
 
-      switch (e.type) {
-        case 'EXTRA_DUTY':
-          if (!e.isPaid) extraDutyPay += amt;
-          break;
-        case 'BONUS':
-          if (!e.isPaid) bonuses += amt;
-          break;
-        case 'ADVANCE_RECOVERY':
-        case 'FUEL_ADVANCE':
-          totalAdvances += amt;
-          break;
-        case 'PENALTY':
-          penalties += amt;
-          break;
-        case 'FOOD':
-        case 'TOLL':
-        case 'MAINTENANCE':
-          if (e.isPaid) totalAdvances += amt;
-          else otherDebits += amt;
-          break;
-        default:
-          if (side === 'credit') {
-            if (!e.isPaid) otherCredits += amt;
-          } else {
+      if (side === 'credit') {
+        if (e.isPaid) continue;
+        switch (e.type) {
+          case 'EXTRA_DUTY':
+            extraDutyPay += amt;
+            break;
+          case 'BONUS':
+            bonuses += amt;
+            break;
+          case 'ALLOWANCE':
+            otherCredits += amt;
+            break;
+          default:
+            otherCredits += amt;
+            break;
+        }
+      } else {
+        switch (e.type) {
+          case 'ADVANCE':
+          case 'FUEL_ADVANCE':
+          case 'ADVANCE_RECOVERY':
+            totalAdvances += amt;
+            break;
+          case 'PENALTY':
+            penalties += amt;
+            break;
+          case 'FOOD':
+          case 'TOLL':
+          case 'MAINTENANCE':
             if (e.isPaid) totalAdvances += amt;
             else otherDebits += amt;
-          }
-          break;
+            break;
+          default:
+            if (e.isPaid) totalAdvances += amt;
+            else otherDebits += amt;
+            break;
+        }
       }
     }
 
@@ -489,7 +549,7 @@ export class DriverLedgerService {
         netPayable,
         status: 'CALCULATED',
       },
-      include: { driver: { select: { name: true, phone: true, employeeCode: true } } },
+      include: { driver: { select: { name: true, nickname: true, phone: true, employeeCode: true } } },
     });
 
     return record;
@@ -576,12 +636,4 @@ export class DriverLedgerService {
     return updated;
   }
 
-  // ────────────────────────────────────────────
-  // HELPERS
-  // ────────────────────────────────────────────
-
-  private isTypeCredit(type: string): boolean {
-    const creditTypes = ['SALARY', 'EXTRA_DUTY', 'BONUS'];
-    return creditTypes.includes(type);
-  }
 }

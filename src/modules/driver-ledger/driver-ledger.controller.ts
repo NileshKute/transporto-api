@@ -83,7 +83,13 @@ export class DriverLedgerController {
   @Post('driver-ledger')
   @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'COLD_STORAGE_OPERATOR', 'VIEWER')
   @RequirePermission('driver-ledger', 'create')
-  @ApiOperation({ summary: 'Create ledger entry' })
+  @ApiOperation({
+    summary: 'Create ledger entry',
+    description:
+      'Prisma types (credit → increases net owed to driver; debit → reduces it): EXTRA_DUTY, BONUS, ALLOWANCE, SALARY (credit); ADVANCE, ADVANCE_RECOVERY, PENALTY, FOOD, FUEL_ADVANCE, TOLL, MAINTENANCE (debit); OTHER. ' +
+      'UI aliases: SALARY_AGAINST_ADVANCE or description/category containing "Salary Against Advance" → stored as ADVANCE (debit). ' +
+      'OTHER_CREDIT / OTHER_DEBIT → OTHER with isCredit; or set isCredit on OTHER. Net totals exclude SALARY payment rows.',
+  })
   createEntry(@Body() dto: any) {
     return this.svc.createEntry(dto);
   }
