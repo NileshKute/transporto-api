@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { VehicleType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SurepassService } from '../surepass/surepass.service';
 
@@ -106,7 +107,11 @@ export class VehiclesService {
   }
 
   async create(dto: any) {
-    return this.prisma.vehicle.create({ data: this.parseVehicleDto(dto) });
+    const data = this.parseVehicleDto(dto) as Record<string, unknown>;
+    if (data.type === undefined || data.type === null || data.type === '') {
+      data.type = VehicleType.TRUCK;
+    }
+    return this.prisma.vehicle.create({ data: data as any });
   }
 
   async update(id: string, dto: any) {
