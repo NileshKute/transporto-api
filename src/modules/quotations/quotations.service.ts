@@ -238,6 +238,11 @@ export class QuotationsService {
     if (existing.status === 'CONVERTED_TO_INVOICE') {
       throw new BadRequestException('Converted quotations cannot be edited');
     }
+    if (existing.status !== 'DRAFT' && existing.sourceType !== 'imported') {
+      throw new BadRequestException(
+        'Only draft or imported quotations can be edited',
+      );
+    }
 
     const data: Prisma.QuotationUpdateInput = {};
     if (dto.clientId !== undefined) {
