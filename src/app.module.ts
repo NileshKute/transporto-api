@@ -19,6 +19,7 @@ import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ClientModule } from './modules/client/client.module';
 import { InvoiceModule } from './modules/invoice/invoice.module';
+import { QuotationsModule } from './modules/quotations/quotations.module';
 import { DriverLedgerModule } from './modules/driver-ledger/driver-ledger.module';
 import { BpclModule } from './modules/bpcl/bpcl.module';
 import { VehicleMaintenanceModule } from './modules/vehicle-maintenance/vehicle-maintenance.module';
@@ -45,6 +46,7 @@ import { LocationsModule } from './modules/locations/locations.module';
     WhatsAppModule,
     ClientModule,
     InvoiceModule,
+    QuotationsModule,
     DriverLedgerModule,
     BpclModule,
     VehicleMaintenanceModule,

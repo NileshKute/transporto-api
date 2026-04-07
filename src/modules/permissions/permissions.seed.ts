@@ -27,6 +27,11 @@ export const DEFAULT_PERMISSION_GROUPS: Array<{
   { role: 'ADMIN', module: 'invoices', actions: ['view', 'create', 'edit', 'delete', 'download'] },
   {
     role: 'ADMIN',
+    module: 'quotations',
+    actions: ['view', 'create', 'edit', 'delete', 'download', 'import'],
+  },
+  {
+    role: 'ADMIN',
     module: 'driver-ledger',
     actions: ['view', 'create', 'edit', 'delete', 'mark-paid', 'download'],
   },
@@ -46,6 +51,7 @@ export const DEFAULT_PERMISSION_GROUPS: Array<{
   { role: 'CEO', module: 'whatsapp', actions: ['view'] },
   { role: 'CEO', module: 'clients', actions: ['view'] },
   { role: 'CEO', module: 'invoices', actions: ['view', 'download'] },
+  { role: 'CEO', module: 'quotations', actions: ['view', 'download'] },
   {
     role: 'CEO',
     module: 'driver-ledger',
@@ -65,12 +71,22 @@ export const DEFAULT_PERMISSION_GROUPS: Array<{
   { role: 'MANAGER', module: 'whatsapp', actions: ['view', 'create'] },
   { role: 'MANAGER', module: 'driver-ledger', actions: ['view', 'create', 'edit', 'download'] },
   { role: 'MANAGER', module: 'salary', actions: ['view', 'create'] },
+  {
+    role: 'MANAGER',
+    module: 'quotations',
+    actions: ['view', 'create', 'edit', 'download'],
+  },
 
   { role: 'ACCOUNTANT', module: 'clients', actions: ['view', 'create', 'edit'] },
   {
     role: 'ACCOUNTANT',
     module: 'invoices',
     actions: ['view', 'create', 'edit', 'delete', 'download'],
+  },
+  {
+    role: 'ACCOUNTANT',
+    module: 'quotations',
+    actions: ['view', 'create', 'edit', 'delete', 'download', 'import'],
   },
   {
     role: 'ACCOUNTANT',
@@ -97,6 +113,7 @@ export const DEFAULT_PERMISSION_GROUPS: Array<{
   { role: 'VIEWER', module: 'whatsapp', actions: ['view'] },
   { role: 'VIEWER', module: 'clients', actions: ['view'] },
   { role: 'VIEWER', module: 'invoices', actions: ['view', 'download'] },
+  { role: 'VIEWER', module: 'quotations', actions: ['view', 'download'] },
   { role: 'VIEWER', module: 'driver-ledger', actions: ['view', 'download'] },
   { role: 'VIEWER', module: 'salary', actions: ['view'] },
 

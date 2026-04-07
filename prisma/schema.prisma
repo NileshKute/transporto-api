@@ -263,6 +263,30 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED_TO_INVOICE
+}
+
+enum VehicleQuoteType {
+  BOLERO_PICKUP
+  BOLERO_MAXI_TRUCK
+  MAHINDRA_PICKUP
+  EICHER_2059
+  EICHER_PRO_2059
+  EICHER_PRO_2080
+  EICHER_PRO_3015
+  TATA_407
+  TATA_709
+  TATA_LPT
+  REFRIGERATED_VAN
+  OTHER
+}
+
 // ==================== MODELS ====================
 
 model User {
@@ -919,6 +943,7 @@ model Client {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   invoices         Invoice[]
+  quotations       Quotation[]
   clientVehicles   ClientVehicle[]
   gpsShareSessions GpsShareSession[]
   locations        Location[]
@@ -987,6 +1012,7 @@ model Invoice {
   pdfUrl             String?   @db.VarChar(500)
   lineItems          InvoiceLineItem[]
   deductions         InvoiceDeduction[]
+  quotation          Quotation?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -994,6 +1020,82 @@ model Invoice {
   @@index([status])
   @@index([billingPeriodStart, billingPeriodEnd])
   @@map("invoices")
+}
+
+model Quotation {
+  id                  String            @id @default(cuid())
+  quoteNumber         String            @unique
+  clientId            String?
+  client              Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  clientName          String
+  attnPerson          String?
+  clientAddress       String?
+  subject             String?
+  quoteDate           DateTime
+  validityDays        Int               @default(30)
+  validUntil          DateTime?
+  vehicleType         String
+  vehicleCategory     VehicleQuoteType?
+  loadingCapacityKg   Int?
+  temperatureC        Float?
+  monthlyRate         Float?
+  fixedKm             Int?
+  additionalPerKm     Float?
+  tollIncluded        Boolean           @default(false)
+  loadLocations       String[]
+  status              QuotationStatus   @default(DRAFT)
+  acceptedDate        DateTime?
+  rejectedReason      String?
+  invoiceId           String?           @unique
+  invoice             Invoice?          @relation(fields: [invoiceId], references: [id])
+  termsAndConditions  String?           @db.Text
+  notes               String?           @db.Text
+  sourceType          String?
+  sourceFolder        String?
+  sourceFile          String?
+  rawText             String?           @db.Text
+  createdBy           String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  lineItems           QuotationLineItem[]
+  history             QuotationHistory[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([quoteDate])
+  @@map("quotations")
+}
+
+model QuotationLineItem {
+  id              String     @id @default(cuid())
+  quotationId     String
+  quotation       Quotation  @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  srNo            Int
+  description     String
+  vehicleNumber   String?
+  fixedKm         Int?
+  fixedCharges    Float
+  additionalCost  Float?
+  remark          String?
+  createdAt       DateTime   @default(now())
+
+  @@index([quotationId])
+  @@map("quotation_line_items")
+}
+
+model QuotationHistory {
+  id            String            @id @default(cuid())
+  quotationId   String
+  quotation     Quotation         @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  action        String
+  fromStatus    QuotationStatus?
+  toStatus      QuotationStatus?
+  changedBy     String?
+  notes         String?
+  changedAt     DateTime          @default(now())
+
+  @@index([quotationId])
+  @@map("quotation_history")
 }
 
 model InvoiceLineItem {
