@@ -222,6 +222,130 @@ export class QuotationsImportService {
     return { imported, skipped, errors, total: data.length };
   }
 
+  /**
+   * Re-parse raw text for imported quotations missing rate and/or client link.
+   * Idempotent: only fills null monthlyRate / null clientId; never overwrites existing values.
+   */
+  async reparseHistoricalData(): Promise<{
+    totalScanned: number;
+    rateUpdated: number;
+    clientLinked: number;
+  }> {
+    const quotes = await this.prisma.quotation.findMany({
+      where: {
+        sourceType: 'imported',
+        rawText: { not: null },
+        OR: [{ monthlyRate: null }, { clientId: null }],
+      },
+    });
+
+    const allClients = await this.prisma.client.findMany({
+      select: { id: true, name: true },
+    });
+
+    let rateUpdated = 0;
+    let clientLinked = 0;
+
+    for (const quote of quotes) {
+      const updates: {
+        monthlyRate?: number;
+        clientId?: string;
+      } = {};
+
+      if (quote.monthlyRate == null && quote.rawText) {
+        const rate = this.extractMonthlyRate(quote.rawText);
+        if (rate != null) {
+          updates.monthlyRate = rate;
+          rateUpdated++;
+        }
+      }
+
+      if (quote.clientId == null) {
+        const matchedClient = this.findMatchingClient(
+          quote.clientName || quote.sourceFolder || '',
+          allClients,
+        );
+        if (matchedClient) {
+          updates.clientId = matchedClient.id;
+          clientLinked++;
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await this.prisma.quotation.update({
+          where: { id: quote.id },
+          data: updates,
+        });
+      }
+    }
+
+    return {
+      totalScanned: quotes.length,
+      rateUpdated,
+      clientLinked,
+    };
+  }
+
+  private extractMonthlyRate(text: string): number | null {
+    if (!text) return null;
+
+    const patterns = [
+      /(?:monthly\s+(?:rate|hire|charge)s?\s+(?:of\s+)?)?Rs[\.\s]*(\d{1,3}(?:,\d{2,3})+(?:\.\d+)?)\/?\-?/i,
+      /(?:monthly\s+(?:rate|hire|charge)s?\s+(?:of\s+)?)?Rs[\.\s]*(\d{4,7}(?:\.\d+)?)\/?\-?/i,
+      /fixed\s+monthly\s+(?:rate|hire|charge)s?\s+(?:of\s+)?(?:Rs[\.\s]*)?(\d{1,3}(?:,\d{2,3})+(?:\.\d+)?)/i,
+      /monthly[\s\S]{0,80}?Rs[\.\s]*(\d{1,3}(?:,\d{2,3})+(?:\.\d+)?)/i,
+    ];
+
+    for (const pat of patterns) {
+      const match = text.match(pat);
+      if (match) {
+        const rate = parseFloat(match[1].replace(/,/g, ''));
+        if (rate >= 5000 && rate <= 500000) {
+          return rate;
+        }
+      }
+    }
+    return null;
+  }
+
+  private findMatchingClient(
+    searchName: string,
+    clients: { id: string; name: string }[],
+  ): { id: string; name: string } | null {
+    if (!searchName) return null;
+
+    const normalize = (s: string) =>
+      s
+        .toLowerCase()
+        .replace(/[^\w\s]/g, ' ')
+        .replace(/\b(pvt|ltd|limited|private|company|co|inc)\b/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const search = normalize(searchName);
+    if (!search || search.length < 3) return null;
+
+    for (const client of clients) {
+      if (normalize(client.name) === search) return client;
+    }
+
+    for (const client of clients) {
+      const cn = normalize(client.name);
+      if (cn.length < 3) continue;
+
+      if (search.includes(cn) || cn.includes(search)) {
+        return client;
+      }
+
+      const searchWords = search.split(' ').filter((w) => w.length > 3);
+      const clientWords = cn.split(' ').filter((w) => w.length > 3);
+      const common = searchWords.filter((w) => clientWords.includes(w));
+      if (common.length >= 2) return client;
+    }
+
+    return null;
+  }
+
   private mapVehicleType(text: string | null): VehicleQuoteType {
     if (!text) return VehicleQuoteType.OTHER;
     const lower = text.toLowerCase();

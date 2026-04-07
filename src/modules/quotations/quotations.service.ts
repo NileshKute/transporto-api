@@ -93,6 +93,7 @@ export class QuotationsService {
         where,
         skip,
         take: Number(limit),
+        // All scalar fields (including quoteDate) are returned; relations below are added.
         include: {
           client: { select: { id: true, name: true, gstNumber: true } },
           invoice: { select: { id: true, invoiceNumber: true, status: true } },

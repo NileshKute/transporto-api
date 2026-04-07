@@ -77,6 +77,17 @@ export class QuotationsController {
     return this.importService.importFromBuffer(file.buffer);
   }
 
+  @Post('admin/reparse-historical')
+  @Roles('SUPER_ADMIN', 'ADMIN')
+  @RequirePermission('quotations', 'import')
+  @ApiOperation({
+    summary:
+      'Re-parse imported quotations: extract monthly rates and link clients from raw text',
+  })
+  reparseHistorical() {
+    return this.importService.reparseHistoricalData();
+  }
+
   @Post()
   @Roles(
     'SUPER_ADMIN',
