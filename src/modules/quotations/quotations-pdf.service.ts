@@ -69,7 +69,9 @@ export class QuotationsPdfService {
 
     const doc = new PDFDocument({
       size: 'A4',
-      margins: { top: 30, bottom: 92, left: ML, right: MR },
+      margins: { top: 30, bottom: 28, left: ML, right: MR },
+      bufferPages: true,
+      autoFirstPage: true,
     });
     const chunks: Buffer[] = [];
     doc.on('data', (c: Buffer) => chunks.push(c));
@@ -276,65 +278,76 @@ export class QuotationsPdfService {
       .filter(Boolean);
     const linesToRender = termLines.length ? termLines : [terms.trim() || terms];
 
+    /** Do not draw terms below this Y — leaves room for signature + footer on page 1 */
+    const maxTermsBottomY = PAGE_H - 112;
+    let ty = termsStartY;
+    const termTextOpts = { width: CW, lineGap: 2, align: 'left' as const };
+    doc.switchToPage(0);
     for (const termsLine of linesToRender) {
-      doc.fontSize(11).font('Helvetica').fillColor('#0D2847').text(termsLine, ML, y, {
-        width: CW,
-        align: 'left',
-      });
-      y = doc.y + 4;
+      doc.fontSize(11).font('Helvetica').fillColor('#0D2847');
+      const lineH = doc.heightOfString(termsLine, termTextOpts);
+      if (ty + lineH > maxTermsBottomY) break;
+      doc.switchToPage(0);
+      doc.text(termsLine, ML, ty, termTextOpts);
+      ty += lineH + 2;
     }
 
-    const termsBottomY = Math.max(y, doc.y);
-
-    const footerBand = 11;
-    const signatureReserve = 88;
+    const pageHeight = doc.page.height;
     const sigBlockX = PW - MR - 140;
-    const desiredSigTop = PAGE_H - 120;
-    let sigY = Math.max(termsBottomY + 15, desiredSigTop);
-    const sigCeiling = PAGE_H - footerBand - signatureReserve;
-    if (sigY > sigCeiling) sigY = sigCeiling;
-    if (sigY < termsBottomY + 8) sigY = termsBottomY + 8;
+    const sigBlockW = 140;
+    /** Fixed layout on page 1 only (avoids flowing onto extra pages) */
+    const signatureY = pageHeight - 150;
+    const signatureLineY = signatureY + 52;
+    const proprietorY = signatureLineY + 6;
 
-    doc.font('Helvetica').fontSize(8).fillColor(C.gray).text('E. & O.E.', ML, sigY);
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(C.navy).text('For G K ENTERPRISE', sigBlockX, sigY, {
-      width: 140,
-      align: 'center',
-    });
-    let sigCursorY = sigY + 14;
+    doc.switchToPage(0);
+
+    doc.fontSize(10).font('Helvetica').fillColor('#0D2847').text('E. & O.E.', ML, signatureY);
+
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#0D2847').text(
+      'For G K ENTERPRISE',
+      sigBlockX,
+      signatureY,
+      { width: sigBlockW, align: 'center' },
+    );
 
     const sigImgPath = resolveSignaturePath();
+    const imgY = signatureY + 14;
     if (sigImgPath) {
       try {
-        doc.image(sigImgPath, sigBlockX + 40, sigCursorY, { width: 60, height: 40 });
+        doc.image(sigImgPath, sigBlockX + 40, imgY, { width: 60, height: 40 });
       } catch {
-        doc.font('Helvetica-Oblique').fontSize(10).fillColor(C.gray).text('Sd/-', sigBlockX, sigCursorY + 10, {
-          width: 140,
+        doc.font('Helvetica-Oblique').fontSize(10).fillColor(C.gray).text('Sd/-', sigBlockX, imgY + 10, {
+          width: sigBlockW,
           align: 'center',
         });
       }
     } else {
-      doc.font('Helvetica-Oblique').fontSize(10).fillColor(C.gray).text('Sd/-', sigBlockX, sigCursorY + 10, {
-        width: 140,
+      doc.font('Helvetica-Oblique').fontSize(10).fillColor(C.gray).text('Sd/-', sigBlockX, imgY + 10, {
+        width: sigBlockW,
         align: 'center',
       });
     }
-    sigCursorY += 44;
 
     doc.save();
-    doc.lineWidth(0.5).strokeColor(C.gray).moveTo(sigBlockX, sigCursorY).lineTo(PW - MR, sigCursorY).stroke();
+    doc.lineWidth(0.5).strokeColor(C.gray).moveTo(sigBlockX, signatureLineY).lineTo(PW - MR, signatureLineY).stroke();
     doc.restore();
-    sigCursorY += 4;
-    doc.font('Helvetica').fontSize(7.5).fillColor(C.gray).text('Proprietor', sigBlockX, sigCursorY, { width: 140, align: 'center' });
 
+    doc.fontSize(9).font('Helvetica').fillColor('#0D2847').text('Proprietor', sigBlockX, proprietorY, {
+      width: sigBlockW,
+      align: 'center',
+    });
+
+    const footerBand = 11;
     doc.save();
-    doc.rect(0, PAGE_H - 11, PW, 3).fill(C.ice);
-    doc.rect(0, PAGE_H - 8, PW, 8).fill(C.navy);
+    doc.rect(0, pageHeight - footerBand - 3, PW, 3).fill(C.ice);
+    doc.rect(0, pageHeight - footerBand, PW, footerBand).fill(C.navy);
     doc.restore();
 
-    doc.font('Helvetica').fontSize(7).fillColor(C.white).text(
+    doc.fontSize(7).font('Helvetica').fillColor(C.white).text(
       `${COMPANY.mobile}  |  ${COMPANY.email}  |  ${COMPANY.web}`,
       ML,
-      PAGE_H - 6,
+      pageHeight - 6,
       { width: CW, align: 'center' },
     );
 
