@@ -69,7 +69,7 @@ export class QuotationsPdfService {
 
     const doc = new PDFDocument({
       size: 'A4',
-      margins: { top: 30, bottom: 28, left: ML, right: MR },
+      margins: { top: 40, bottom: 0, left: ML, right: MR },
       bufferPages: true,
       autoFirstPage: true,
     });
@@ -278,8 +278,10 @@ export class QuotationsPdfService {
       .filter(Boolean);
     const linesToRender = termLines.length ? termLines : [terms.trim() || terms];
 
-    /** Do not draw terms below this Y — leaves room for signature + footer on page 1 */
-    const maxTermsBottomY = PAGE_H - 112;
+    const pageHeight = doc.page.height;
+    const pageWidth = doc.page.width;
+    /** Room for signature block + footer band on page 1 */
+    const maxTermsBottomY = pageHeight - 160;
     let ty = termsStartY;
     const termTextOpts = { width: CW, lineGap: 2, align: 'left' as const };
     doc.switchToPage(0);
@@ -291,8 +293,6 @@ export class QuotationsPdfService {
       doc.text(termsLine, ML, ty, termTextOpts);
       ty += lineH + 2;
     }
-
-    const pageHeight = doc.page.height;
     const sigBlockX = PW - MR - 140;
     const sigBlockW = 140;
     /** Fixed layout on page 1 only (avoids flowing onto extra pages) */
@@ -338,17 +338,22 @@ export class QuotationsPdfService {
       align: 'center',
     });
 
-    const footerBand = 11;
+    doc.switchToPage(0);
+
     doc.save();
-    doc.rect(0, pageHeight - footerBand - 3, PW, 3).fill(C.ice);
-    doc.rect(0, pageHeight - footerBand, PW, footerBand).fill(C.navy);
+    doc.rect(0, pageHeight - 14, pageWidth, 3).fill(C.ice);
+    doc.rect(0, pageHeight - 11, pageWidth, 11).fill(C.navy);
     doc.restore();
 
     doc.fontSize(7).font('Helvetica').fillColor(C.white).text(
       `${COMPANY.mobile}  |  ${COMPANY.email}  |  ${COMPANY.web}`,
-      ML,
-      pageHeight - 6,
-      { width: CW, align: 'center' },
+      0,
+      pageHeight - 7,
+      {
+        width: pageWidth,
+        align: 'center',
+        lineBreak: false,
+      },
     );
 
     doc.end();
