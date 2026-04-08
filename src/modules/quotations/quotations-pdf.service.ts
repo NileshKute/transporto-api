@@ -57,6 +57,8 @@ function resolveSignaturePath(): string | null {
 const ML = 40;
 const MR = 40;
 const PW = 595.28;
+/** A4 height (points); used for fixed footer/signature on page 1 */
+const PAGE_H = 841.89;
 const CW = PW - ML - MR;
 
 @Injectable()
@@ -67,7 +69,7 @@ export class QuotationsPdfService {
 
     const doc = new PDFDocument({
       size: 'A4',
-      margins: { top: 30, bottom: 30, left: ML, right: MR },
+      margins: { top: 30, bottom: 92, left: ML, right: MR },
     });
     const chunks: Buffer[] = [];
     doc.on('data', (c: Buffer) => chunks.push(c));
@@ -246,16 +248,24 @@ export class QuotationsPdfService {
     doc.restore();
     y += 8;
 
+    /** Bottom of table + divider — left column reference */
+    const leftEndY = y;
+
     const totLabelX = PW - MR - 200;
     const totValX = PW - MR - 90;
     const totValW = 90;
     const monthly = quotation.monthlyRate != null ? Number(quotation.monthlyRate) : null;
     const totalDisplay = monthly != null && monthly > subtotal ? monthly : subtotal;
 
+    const totalRowY = y;
     doc.font('Helvetica-Bold').fontSize(11).fillColor(C.navy);
-    doc.text('Total monthly (quoted):', totLabelX, y, { width: 120, align: 'right' });
-    doc.text(`₹ ${fmt(totalDisplay)}`, totValX, y, { width: totValW, align: 'right' });
-    y += 20;
+    doc.text('Total monthly (quoted):', totLabelX, totalRowY, { width: 120, align: 'right' });
+    doc.text(`₹ ${fmt(totalDisplay)}`, totValX, totalRowY, { width: totValW, align: 'right' });
+    const totalLineH = doc.heightOfString(`₹ ${fmt(totalDisplay)}`, { width: totValW });
+    const totalEndY = totalRowY + Math.max(totalLineH, 14) + 4;
+
+    const termsStartY = Math.max(totalEndY, leftEndY + Math.max(totalLineH, 14) + 4) + 10;
+    y = termsStartY;
 
     const terms =
       (quotation.termsAndConditions as string) ||
@@ -265,65 +275,66 @@ export class QuotationsPdfService {
       .map((l) => l.trim())
       .filter(Boolean);
     const linesToRender = termLines.length ? termLines : [terms.trim() || terms];
+
     for (const termsLine of linesToRender) {
       doc.fontSize(11).font('Helvetica').fillColor('#0D2847').text(termsLine, ML, y, {
         width: CW,
         align: 'left',
       });
-      y = doc.y + 6;
+      y = doc.y + 4;
     }
-    y += 6;
 
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(C.navy).text('NOTES', ML, y);
-    y += 12;
-    doc.font('Helvetica').fontSize(11).fillColor('#0D2847');
-    const notes = quotation.notes != null ? String(quotation.notes) : 'E. & O.E.';
-    const notesH = doc.heightOfString(notes, { width: CW });
-    doc.text(notes, ML, y, { width: CW });
-    y += notesH + 16;
+    const termsBottomY = Math.max(y, doc.y);
 
-    doc.font('Helvetica').fontSize(8).fillColor(C.gray).text('E. & O.E.', ML, y);
+    const footerBand = 11;
+    const signatureReserve = 88;
     const sigBlockX = PW - MR - 140;
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(C.navy).text('For G K ENTERPRISE', sigBlockX, y, {
+    const desiredSigTop = PAGE_H - 120;
+    let sigY = Math.max(termsBottomY + 15, desiredSigTop);
+    const sigCeiling = PAGE_H - footerBand - signatureReserve;
+    if (sigY > sigCeiling) sigY = sigCeiling;
+    if (sigY < termsBottomY + 8) sigY = termsBottomY + 8;
+
+    doc.font('Helvetica').fontSize(8).fillColor(C.gray).text('E. & O.E.', ML, sigY);
+    doc.font('Helvetica-Bold').fontSize(9).fillColor(C.navy).text('For G K ENTERPRISE', sigBlockX, sigY, {
       width: 140,
       align: 'center',
     });
-    y += 14;
+    let sigCursorY = sigY + 14;
 
     const sigImgPath = resolveSignaturePath();
     if (sigImgPath) {
       try {
-        doc.image(sigImgPath, sigBlockX + 40, y, { width: 60, height: 40 });
+        doc.image(sigImgPath, sigBlockX + 40, sigCursorY, { width: 60, height: 40 });
       } catch {
-        doc.font('Helvetica-Oblique').fontSize(10).fillColor(C.gray).text('Sd/-', sigBlockX, y + 10, {
+        doc.font('Helvetica-Oblique').fontSize(10).fillColor(C.gray).text('Sd/-', sigBlockX, sigCursorY + 10, {
           width: 140,
           align: 'center',
         });
       }
     } else {
-      doc.font('Helvetica-Oblique').fontSize(10).fillColor(C.gray).text('Sd/-', sigBlockX, y + 10, {
+      doc.font('Helvetica-Oblique').fontSize(10).fillColor(C.gray).text('Sd/-', sigBlockX, sigCursorY + 10, {
         width: 140,
         align: 'center',
       });
     }
-    y += 44;
+    sigCursorY += 44;
 
     doc.save();
-    doc.lineWidth(0.5).strokeColor(C.gray).moveTo(sigBlockX, y).lineTo(PW - MR, y).stroke();
+    doc.lineWidth(0.5).strokeColor(C.gray).moveTo(sigBlockX, sigCursorY).lineTo(PW - MR, sigCursorY).stroke();
     doc.restore();
-    y += 4;
-    doc.font('Helvetica').fontSize(7.5).fillColor(C.gray).text('Proprietor', sigBlockX, y, { width: 140, align: 'center' });
+    sigCursorY += 4;
+    doc.font('Helvetica').fontSize(7.5).fillColor(C.gray).text('Proprietor', sigBlockX, sigCursorY, { width: 140, align: 'center' });
 
-    const pageH = 841.89;
     doc.save();
-    doc.rect(0, pageH - 11, PW, 3).fill(C.ice);
-    doc.rect(0, pageH - 8, PW, 8).fill(C.navy);
+    doc.rect(0, PAGE_H - 11, PW, 3).fill(C.ice);
+    doc.rect(0, PAGE_H - 8, PW, 8).fill(C.navy);
     doc.restore();
 
     doc.font('Helvetica').fontSize(7).fillColor(C.white).text(
       `${COMPANY.mobile}  |  ${COMPANY.email}  |  ${COMPANY.web}`,
       ML,
-      pageH - 6,
+      PAGE_H - 6,
       { width: CW, align: 'center' },
     );
 
