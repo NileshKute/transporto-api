@@ -187,8 +187,8 @@ export class QuotationsPdfService {
       { label: 'Sr', w: 28, align: 'center' as const },
       { label: 'Vehicle / Description', w: 200, align: 'left' as const },
       { label: 'Fixed KM', w: 52, align: 'right' as const },
-      { label: 'Fixed ₹', w: 72, align: 'right' as const },
-      { label: 'Add. / KM ₹', w: CW - 28 - 200 - 52 - 72, align: 'right' as const },
+      { label: 'Fixed (Rs.)', w: 72, align: 'right' as const },
+      { label: 'Add. / KM (Rs.)', w: CW - 28 - 200 - 52 - 72, align: 'right' as const },
     ];
 
     const headerH = 20;
@@ -221,8 +221,8 @@ export class QuotationsPdfService {
         String(item.srNo ?? idx + 1),
         String(item.description ?? ''),
         item.fixedKm != null ? String(item.fixedKm) : '—',
-        fmt(fixed),
-        item.additionalCost != null ? fmt(Number(item.additionalCost)) : '—',
+        `Rs. ${fmt(fixed)}`,
+        item.additionalCost != null ? `Rs. ${fmt(Number(item.additionalCost))}` : '—',
       ];
       cx = ML;
       doc.fillColor(C.black);
@@ -241,7 +241,7 @@ export class QuotationsPdfService {
 
     if (lineItems.length === 0 && quotation.monthlyRate != null) {
       subtotal = Number(quotation.monthlyRate) || 0;
-      doc.text(`Monthly rate (summary): ₹ ${fmt(subtotal)}`, ML + 6, y + 6, { width: CW - 12 });
+      doc.text(`Monthly rate (summary): Rs. ${fmt(subtotal)}`, ML + 6, y + 6, { width: CW - 12 });
       y += rowH;
     }
 
@@ -262,8 +262,8 @@ export class QuotationsPdfService {
     const totalRowY = y;
     doc.font('Helvetica-Bold').fontSize(11).fillColor(C.navy);
     doc.text('Total monthly (quoted):', totLabelX, totalRowY, { width: 120, align: 'right' });
-    doc.text(`₹ ${fmt(totalDisplay)}`, totValX, totalRowY, { width: totValW, align: 'right' });
-    const totalLineH = doc.heightOfString(`₹ ${fmt(totalDisplay)}`, { width: totValW });
+    doc.text(`Rs. ${fmt(totalDisplay)}`, totValX, totalRowY, { width: totValW, align: 'right' });
+    const totalLineH = doc.heightOfString(`Rs. ${fmt(totalDisplay)}`, { width: totValW });
     const totalEndY = totalRowY + Math.max(totalLineH, 14) + 4;
 
     const termsStartY = Math.max(totalEndY, leftEndY + Math.max(totalLineH, 14) + 4) + 10;
