@@ -14,10 +14,6 @@ const COMPANY = {
   web: 'www.gkenterprise.in',
   pan: 'AWCPK8573C',
   gst: '27AWCPK8573C1ZG',
-  bank: 'IDBI BANK',
-  branch: 'KAMOTHE, NAVI MUMBAI',
-  accountNo: '1043102000008549',
-  ifsc: 'IBKL0001043',
 };
 
 const C = {
@@ -27,7 +23,6 @@ const C = {
   bg: '#F4F6F8',
   rowAlt: '#F8F9FA',
   border: '#E0E8F0',
-  bankBg: '#E3F2FD',
   gray: '#6B7B8D',
   black: '#1A1A1A',
 };
@@ -169,21 +164,20 @@ export class QuotationsPdfService {
 
     y += billH + 8;
 
-    const metaLines: string[] = [];
-    metaLines.push(`Vehicle / service: ${quotation.vehicleType || '—'}`);
-    if (quotation.vehicleCategory) metaLines.push(`Category: ${String(quotation.vehicleCategory)}`);
-    if (quotation.loadingCapacityKg != null) {
-      metaLines.push(`Loading capacity: ${quotation.loadingCapacityKg} kg`);
-    }
-    if (quotation.temperatureC != null) {
-      metaLines.push(`Temperature: ${quotation.temperatureC} °C`);
-    }
-    if (quotation.tollIncluded) metaLines.push('Toll: Included');
-    const locs = quotation.loadLocations as string[] | undefined;
-    if (locs?.length) metaLines.push(`Load locations: ${locs.join(', ')}`);
+    const vehicleTypeStr = String(quotation.vehicleType || '—');
+    const capacityStr =
+      quotation.loadingCapacityKg != null ? String(quotation.loadingCapacityKg) : '—';
+    const temperatureStr =
+      quotation.temperatureC != null ? String(quotation.temperatureC) : '—';
+    const locsPdf = quotation.loadLocations as string[] | undefined;
+    const locationsStr = locsPdf?.length ? locsPdf.join(', ') : '—';
 
-    doc.font('Helvetica').fontSize(8).fillColor(C.black).text(metaLines.join('  |  '), ML, y, { width: CW });
-    y += Math.max(14, Math.ceil(metaLines.join('').length / 90) * 10);
+    const vehicleSummary = `Vehicle / service: ${vehicleTypeStr} | Loading capacity: ${capacityStr} kg | Temperature: ${temperatureStr} °C | Load locations: ${locationsStr}`;
+
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#0D2847');
+    const vehicleBlockH = doc.heightOfString(vehicleSummary, { width: CW });
+    doc.text(vehicleSummary, ML, y, { width: CW, align: 'left' });
+    y += vehicleBlockH + 8;
 
     const cols = [
       { label: 'Sr', w: 28, align: 'center' as const },
@@ -266,37 +260,27 @@ export class QuotationsPdfService {
     const terms =
       (quotation.termsAndConditions as string) ||
       'This quotation is subject to our standard terms of service and availability of vehicles.';
-    doc.font('Helvetica').fontSize(7.5).fillColor(C.black).text(terms, ML, y, { width: CW });
-    y += 36;
+    const termLines = terms
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const linesToRender = termLines.length ? termLines : [terms.trim() || terms];
+    for (const termsLine of linesToRender) {
+      doc.fontSize(11).font('Helvetica').fillColor('#0D2847').text(termsLine, ML, y, {
+        width: CW,
+        align: 'left',
+      });
+      y = doc.y + 6;
+    }
+    y += 6;
 
-    const panelW = (CW - 16) / 2;
-    const panelH = 68;
-    doc.save();
-    doc.roundedRect(ML, y, panelW, panelH, 4).fill(C.bankBg);
-    doc.restore();
-
-    const bkX = ML + 8;
-    let bkY = y + 8;
-    doc.font('Helvetica-Bold').fontSize(8).fillColor(C.navy).text('BANK DETAILS', bkX, bkY);
-    bkY += 12;
-    doc.font('Helvetica').fontSize(7.5).fillColor(C.black);
-    doc.text(`Bank: ${COMPANY.bank}`, bkX, bkY);
-    bkY += 11;
-    doc.text(`Branch: ${COMPANY.branch}`, bkX, bkY);
-    bkY += 11;
-    doc.text(`A/c No: ${COMPANY.accountNo}`, bkX, bkY);
-    bkY += 11;
-    doc.text(`IFSC: ${COMPANY.ifsc}`, bkX, bkY);
-
-    const tmX = ML + panelW + 16;
-    let tmY = y + 8;
-    doc.font('Helvetica-Bold').fontSize(8).fillColor(C.navy).text('NOTES', tmX, tmY);
-    tmY += 12;
-    doc.font('Helvetica').fontSize(7.5).fillColor(C.black);
+    doc.font('Helvetica-Bold').fontSize(9).fillColor(C.navy).text('NOTES', ML, y);
+    y += 12;
+    doc.font('Helvetica').fontSize(11).fillColor('#0D2847');
     const notes = quotation.notes != null ? String(quotation.notes) : 'E. & O.E.';
-    doc.text(notes, tmX, tmY, { width: panelW - 8 });
-
-    y += panelH + 16;
+    const notesH = doc.heightOfString(notes, { width: CW });
+    doc.text(notes, ML, y, { width: CW });
+    y += notesH + 16;
 
     doc.font('Helvetica').fontSize(8).fillColor(C.gray).text('E. & O.E.', ML, y);
     const sigBlockX = PW - MR - 140;
