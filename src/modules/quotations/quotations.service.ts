@@ -78,12 +78,24 @@ export class QuotationsService {
       };
     }
     if (search && typeof search === 'string') {
-      const s = search.trim();
-      if (s) {
+      const term = search.trim();
+      if (term) {
         where.OR = [
-          { clientName: { contains: s, mode: 'insensitive' } },
-          { quoteNumber: { contains: s, mode: 'insensitive' } },
-          { subject: { contains: s, mode: 'insensitive' } },
+          { quoteNumber: { contains: term, mode: 'insensitive' } },
+          { clientName: { contains: term, mode: 'insensitive' } },
+          { attnPerson: { contains: term, mode: 'insensitive' } },
+          { subject: { contains: term, mode: 'insensitive' } },
+          { rawText: { contains: term, mode: 'insensitive' } },
+          { termsAndConditions: { contains: term, mode: 'insensitive' } },
+          { notes: { contains: term, mode: 'insensitive' } },
+          { vehicleType: { contains: term, mode: 'insensitive' } },
+          { sourceFolder: { contains: term, mode: 'insensitive' } },
+          { sourceFile: { contains: term, mode: 'insensitive' } },
+          {
+            client: {
+              name: { contains: term, mode: 'insensitive' },
+            },
+          },
         ];
       }
     }
