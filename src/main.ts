@@ -14,25 +14,36 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.use(bodyParser.json({ limit: '50mb' }));
-  app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
-
   // Trust Railway's reverse proxy
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.set('trust proxy', 1);
 
-  app.use(helmet());
-
   const allowedOrigins = process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+    ? process.env.FRONTEND_URL.split(',').map(url => url.trim().replace(/\/$/, ''))
     : ['http://localhost:3000'];
 
+  // Run CORS before body parsers and helmet so OPTIONS preflight always gets a clean response.
   app.enableCors({
     origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    optionsSuccessStatus: 204,
+    maxAge: 86400,
   });
+
+  console.log(`🔒 CORS allowed origins: ${allowedOrigins.join(', ')}`);
+
+  app.use(bodyParser.json({ limit: '50mb' }));
+  app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
+  app.use(
+    helmet({
+      // Default is same-origin; APIs consumed from another origin need cross-origin so the
+      // browser can read responses after CORS checks (see Cross-Origin-Resource-Policy).
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -60,6 +71,7 @@ async function bootstrap() {
     .addTag('Trips', 'Trip management')
     .addTag('Fuel', 'Fuel entry management')
     .addTag('BPCL SmartFleet', 'BPCL Excel import and fleet card tagging')
+    .addTag('Toll', 'Kotak FASTag toll Excel import and analytics')
     .addTag('Maintenance', 'Vehicle maintenance records')
     .addTag('Vehicle Maintenance Book', 'Truck/reefer service log and configurable types')
     .addTag('Emergencies', 'Emergency reporting and management')

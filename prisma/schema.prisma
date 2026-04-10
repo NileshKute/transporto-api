@@ -440,6 +440,7 @@ model Vehicle {
   gpsHistory      GpsHistory[]
   gpsShareSessions GpsShareSession[]
   dailyTripLogs   DailyTripLog[]
+  tollTransactions TollTransaction[]
 
   @@index([regNumber])
   @@index([status])
@@ -1363,6 +1364,46 @@ model BpclCardPeriod {
   @@index([cardId])
   @@index([startDate])
   @@map("bpcl_card_periods")
+}
+
+model TollTransaction {
+  id                  String   @id @default(cuid())
+  transactionDateTime DateTime
+  transactionType     String
+  uniqueTxnId         String   @unique
+  plazaCode           String?
+  plazaName           String?
+  debitAmt            Decimal  @default(0) @db.Decimal(12, 2)
+  creditAmt           Decimal  @default(0) @db.Decimal(12, 2)
+  openingBalance      Decimal? @db.Decimal(14, 2)
+  closingBalance      Decimal? @db.Decimal(14, 2)
+  vehicleId           String?
+  vehicle             Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  importBatchId       String?
+  importBatch         TollImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  rawRow              Json?
+  createdAt           DateTime @default(now())
+
+  @@index([transactionDateTime])
+  @@index([vehicleId])
+  @@index([plazaCode])
+  @@map("toll_transactions")
+}
+
+model TollImportBatch {
+  id              String   @id @default(cuid())
+  fileName        String
+  statementPeriod String?
+  totalRows       Int
+  importedRows    Int
+  duplicateRows   Int
+  skippedRows     Int
+  totalDebit      Decimal  @default(0) @db.Decimal(14, 2)
+  uploadedBy      String?
+  uploadedAt      DateTime @default(now())
+  transactions    TollTransaction[]
+
+  @@map("toll_import_batches")
 }
 
 // ============================================
