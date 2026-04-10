@@ -346,28 +346,16 @@ export class TollService {
     const weekEnd = new Date(weekStart);
     weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
 
-    const monthStart = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-    );
-    const monthEnd = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
-    );
-
     const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
     const yearEnd = new Date(Date.UTC(now.getUTCFullYear() + 1, 0, 1));
-
-    const monthWhere: Prisma.TollTransactionWhereInput = {
-      transactionDateTime: { gte: monthStart, lt: monthEnd },
-    };
 
     const [
       todayAgg,
       weekAgg,
       yearAgg,
-      monthDebitAgg,
-      thisMonthTxnCount,
       topPlazaGroup,
       topVehicleGroup,
+      maxTxnRow,
     ] = await Promise.all([
       this.prisma.tollTransaction.aggregate({
         where: { transactionDateTime: { gte: todayStart, lt: todayEnd } },
@@ -381,11 +369,6 @@ export class TollService {
         where: { transactionDateTime: { gte: yearStart, lt: yearEnd } },
         _sum: { debitAmt: true },
       }),
-      this.prisma.tollTransaction.aggregate({
-        where: monthWhere,
-        _sum: { debitAmt: true },
-      }),
-      this.prisma.tollTransaction.count({ where: monthWhere }),
       this.prisma.tollTransaction.groupBy({
         by: ['plazaName'],
         where: { plazaName: { not: null } },
@@ -400,9 +383,44 @@ export class TollService {
         orderBy: { _sum: { debitAmt: 'desc' } },
         take: 1,
       }),
+      this.prisma.tollTransaction.aggregate({
+        _max: { transactionDateTime: true },
+      }),
     ]);
 
-    const thisMonthDebit = Number(monthDebitAgg._sum.debitAmt ?? 0);
+    let latestMonthLabel: string | null = null;
+    let latestMonthDebit = 0;
+    let latestMonthCount = 0;
+
+    const maxTxnAt = maxTxnRow._max.transactionDateTime;
+    if (maxTxnAt) {
+      const d = maxTxnAt;
+      const y = d.getUTCFullYear();
+      const m = d.getUTCMonth();
+      const lmStart = new Date(Date.UTC(y, m, 1));
+      const lmEnd = new Date(Date.UTC(y, m + 1, 1));
+      latestMonthLabel = new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }).format(lmStart);
+
+      const [lmAgg, lmCount] = await Promise.all([
+        this.prisma.tollTransaction.aggregate({
+          where: {
+            transactionDateTime: { gte: lmStart, lt: lmEnd },
+          },
+          _sum: { debitAmt: true },
+        }),
+        this.prisma.tollTransaction.count({
+          where: {
+            transactionDateTime: { gte: lmStart, lt: lmEnd },
+          },
+        }),
+      ]);
+      latestMonthDebit = Number(lmAgg._sum.debitAmt ?? 0);
+      latestMonthCount = lmCount;
+    }
 
     let topPlaza: { name: string; totalDebit: number } | null = null;
     const tp = topPlazaGroup[0];
@@ -434,8 +452,9 @@ export class TollService {
     }
 
     return {
-      thisMonthDebit,
-      thisMonthTxnCount: thisMonthTxnCount,
+      latestMonthLabel,
+      latestMonthDebit,
+      latestMonthCount,
       topPlaza,
       highestSpendVehicle,
       todayDebit: Number(todayAgg._sum.debitAmt ?? 0),
