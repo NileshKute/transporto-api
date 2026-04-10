@@ -62,19 +62,33 @@ export class TollController {
   @ApiOperation({ summary: 'List toll transactions with filters' })
   async getTransactions(
     @Query('vehicleId') vehicleId?: string,
+    @Query('vehicleNumber') vehicleNumber?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
     @Query('plazaCode') plazaCode?: string,
+    @Query('plaza') plaza?: string,
     @Query('type') type?: string,
+    @Query('txnType') txnType?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortDir') sortDir?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
+    const effectiveFrom = startDate ?? from;
+    const effectiveTo = endDate ?? to;
     return this.tollService.getTransactions({
       vehicleId,
-      from,
-      to,
+      vehicleNumber,
+      from: effectiveFrom,
+      to: effectiveTo,
       plazaCode,
+      plaza,
       type,
+      txnType,
+      sortBy,
+      sortDir,
       page: parseInt(page || '1', 10) || 1,
       limit: parseInt(limit || '50', 10) || 50,
     });
@@ -121,6 +135,15 @@ export class TollController {
   @RequirePermission('fuel', 'delete')
   @ApiOperation({ summary: 'Delete an import batch and its transactions' })
   async deleteBatch(@Param('id') id: string) {
+    return this.tollService.deleteBatch(id);
+  }
+
+  @Delete('import-history/:id')
+  @RequirePermission('fuel', 'delete')
+  @ApiOperation({
+    summary: 'Delete an import batch (alias for frontend compatibility)',
+  })
+  deleteBatchAlias(@Param('id') id: string) {
     return this.tollService.deleteBatch(id);
   }
 }

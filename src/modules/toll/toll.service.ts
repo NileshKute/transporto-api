@@ -16,6 +16,13 @@ const TXN_DATA_START_ROW = 27;
 const PERIOD_ROW = 5;
 const PERIOD_COL = 3;
 
+/** Kotak sheet labels → stored enum strings */
+const TOLL_TYPE_MAP: Record<string, string> = {
+  'Toll Txn': 'TOLL',
+  'Non-fin': 'NON_FIN',
+  'SD-Debit': 'SD_DEBIT',
+};
+
 @Injectable()
 export class TollService {
   constructor(private prisma: PrismaService) {}
@@ -81,7 +88,9 @@ export class TollService {
         continue;
       }
 
-      const transactionType = String(row[1] ?? '').trim() || 'Unknown';
+      const rawType = String(row[1] ?? '').trim();
+      const transactionType =
+        TOLL_TYPE_MAP[rawType] ?? 'OTHER';
       const plazaCode = this.strCell(row[3]);
       const desc = String(row[4] ?? '');
       const plazaName = this.extractPlazaName(desc);
@@ -183,29 +192,60 @@ export class TollService {
 
   async getTransactions(filters: {
     vehicleId?: string;
+    /** Comma-separated registration numbers (case-insensitive lookup) */
+    vehicleNumber?: string;
     from?: string;
     to?: string;
     plazaCode?: string;
+    /** Contains match on plazaName */
+    plaza?: string;
     type?: string;
+    txnType?: string;
+    sortBy?: string;
+    sortDir?: string;
     page?: number;
     limit?: number;
   }) {
     const where: Prisma.TollTransactionWhereInput = {};
 
-    if (filters.vehicleId) {
+    const regs = (filters.vehicleNumber ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (regs.length > 0) {
+      const vehicles = await this.prisma.vehicle.findMany({
+        where: {
+          OR: regs.map((reg) => ({
+            regNumber: { equals: reg, mode: 'insensitive' as const },
+          })),
+        },
+        select: { id: true },
+      });
+      const ids = vehicles.map((v) => v.id);
+      if (ids.length === 0) {
+        return this.emptyTransactionsPage(filters);
+      }
+      where.vehicleId = { in: ids };
+    } else if (filters.vehicleId) {
       where.vehicleId = filters.vehicleId;
     }
+
     if (filters.plazaCode) {
       where.plazaCode = {
         equals: filters.plazaCode,
         mode: 'insensitive',
       };
     }
-    if (filters.type) {
-      where.transactionType = {
-        contains: filters.type,
+    if (filters.plaza?.trim()) {
+      where.plazaName = {
+        contains: filters.plaza.trim(),
         mode: 'insensitive',
       };
+    }
+    const typeFilter = filters.txnType ?? filters.type;
+    if (typeFilter) {
+      where.transactionType = typeFilter;
     }
     if (filters.from || filters.to) {
       where.transactionDateTime = {};
@@ -222,10 +262,15 @@ export class TollService {
     const page = filters.page || 1;
     const limit = filters.limit || 50;
 
+    const orderBy = this.buildTransactionsOrderBy(
+      filters.sortBy,
+      filters.sortDir,
+    );
+
     const [data, total, sumAgg] = await Promise.all([
       this.prisma.tollTransaction.findMany({
         where,
-        orderBy: { transactionDateTime: 'desc' },
+        orderBy,
         skip: (page - 1) * limit,
         take: limit,
         include: { vehicle: { select: { id: true, regNumber: true } } },
@@ -246,6 +291,45 @@ export class TollService {
         totalDebit: sumAgg._sum.debitAmt ?? new Prisma.Decimal(0),
         totalCredit: sumAgg._sum.creditAmt ?? new Prisma.Decimal(0),
         txnCount: total,
+      },
+    };
+  }
+
+  private buildTransactionsOrderBy(
+    sortBy?: string,
+    sortDir?: string,
+  ): Prisma.TollTransactionOrderByWithRelationInput {
+    const dir = sortDir?.toLowerCase() === 'asc' ? 'asc' : 'desc';
+    switch (sortBy) {
+      case 'type':
+        return { transactionType: dir };
+      case 'plaza':
+        return { plazaName: dir };
+      case 'debit':
+        return { debitAmt: dir };
+      case 'balance':
+        return { closingBalance: dir };
+      case 'date':
+      default:
+        return { transactionDateTime: dir };
+    }
+  }
+
+  private async emptyTransactionsPage(filters: {
+    page?: number;
+    limit?: number;
+  }) {
+    const page = filters.page || 1;
+    const limit = filters.limit || 50;
+    return {
+      data: [],
+      total: 0,
+      page,
+      limit,
+      summary: {
+        totalDebit: new Prisma.Decimal(0),
+        totalCredit: new Prisma.Decimal(0),
+        txnCount: 0,
       },
     };
   }
@@ -272,82 +356,91 @@ export class TollService {
     const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
     const yearEnd = new Date(Date.UTC(now.getUTCFullYear() + 1, 0, 1));
 
-    const [today, week, month, year] = await Promise.all([
-      this.aggDebitCredit({
-        transactionDateTime: { gte: todayStart, lt: todayEnd },
+    const monthWhere: Prisma.TollTransactionWhereInput = {
+      transactionDateTime: { gte: monthStart, lt: monthEnd },
+    };
+
+    const [
+      todayAgg,
+      weekAgg,
+      yearAgg,
+      monthDebitAgg,
+      thisMonthTxnCount,
+      topPlazaGroup,
+      topVehicleGroup,
+    ] = await Promise.all([
+      this.prisma.tollTransaction.aggregate({
+        where: { transactionDateTime: { gte: todayStart, lt: todayEnd } },
+        _sum: { debitAmt: true },
       }),
-      this.aggDebitCredit({
-        transactionDateTime: { gte: weekStart, lt: weekEnd },
+      this.prisma.tollTransaction.aggregate({
+        where: { transactionDateTime: { gte: weekStart, lt: weekEnd } },
+        _sum: { debitAmt: true },
       }),
-      this.aggDebitCredit({
-        transactionDateTime: { gte: monthStart, lt: monthEnd },
+      this.prisma.tollTransaction.aggregate({
+        where: { transactionDateTime: { gte: yearStart, lt: yearEnd } },
+        _sum: { debitAmt: true },
       }),
-      this.aggDebitCredit({
-        transactionDateTime: { gte: yearStart, lt: yearEnd },
+      this.prisma.tollTransaction.aggregate({
+        where: monthWhere,
+        _sum: { debitAmt: true },
+      }),
+      this.prisma.tollTransaction.count({ where: monthWhere }),
+      this.prisma.tollTransaction.groupBy({
+        by: ['plazaName'],
+        where: { plazaName: { not: null } },
+        _sum: { debitAmt: true },
+        orderBy: { _sum: { debitAmt: 'desc' } },
+        take: 1,
+      }),
+      this.prisma.tollTransaction.groupBy({
+        by: ['vehicleId'],
+        where: { vehicleId: { not: null } },
+        _sum: { debitAmt: true },
+        orderBy: { _sum: { debitAmt: 'desc' } },
+        take: 1,
       }),
     ]);
 
-    const topPlazasRaw = await this.prisma.tollTransaction.groupBy({
-      by: ['plazaCode'],
-      where: { plazaCode: { not: null } },
-      _sum: { debitAmt: true },
-      _count: { _all: true },
-      orderBy: { _sum: { debitAmt: 'desc' } },
-      take: 5,
-    });
+    const thisMonthDebit = Number(monthDebitAgg._sum.debitAmt ?? 0);
 
-    const topPlazas = await Promise.all(
-      topPlazasRaw.map(async (p) => {
-        const sample = await this.prisma.tollTransaction.findFirst({
-          where: { plazaCode: p.plazaCode },
-          select: { plazaName: true },
-          orderBy: { transactionDateTime: 'desc' },
-        });
-        return {
-          plazaCode: p.plazaCode,
-          plazaName: sample?.plazaName ?? null,
-          totalDebit: p._sum.debitAmt ?? new Prisma.Decimal(0),
-          txnCount: p._count._all,
-        };
-      }),
-    );
+    let topPlaza: { name: string; totalDebit: number } | null = null;
+    const tp = topPlazaGroup[0];
+    if (tp?.plazaName) {
+      topPlaza = {
+        name: tp.plazaName,
+        totalDebit: Number(tp._sum.debitAmt ?? 0),
+      };
+    }
 
-    const topVehicleGroup = await this.prisma.tollTransaction.groupBy({
-      by: ['vehicleId'],
-      where: { vehicleId: { not: null } },
-      _sum: { debitAmt: true },
-      orderBy: { _sum: { debitAmt: 'desc' } },
-      take: 1,
-    });
-
-    let topSpendVehicle: {
-      vehicleId: string;
-      regNumber: string | null;
-      totalDebit: Prisma.Decimal;
+    let highestSpendVehicle: {
+      regNumber: string;
+      totalDebit: number;
     } | null = null;
 
     if (topVehicleGroup[0]?.vehicleId) {
       const v = await this.prisma.vehicle.findUnique({
         where: { id: topVehicleGroup[0].vehicleId },
-        select: { id: true, regNumber: true },
+        select: { regNumber: true },
       });
-      topSpendVehicle = {
-        vehicleId: topVehicleGroup[0].vehicleId,
-        regNumber: v?.regNumber ?? null,
-        totalDebit:
-          topVehicleGroup[0]._sum.debitAmt ?? new Prisma.Decimal(0),
-      };
+      if (v?.regNumber) {
+        highestSpendVehicle = {
+          regNumber: v.regNumber,
+          totalDebit: Number(
+            topVehicleGroup[0]._sum.debitAmt ?? new Prisma.Decimal(0),
+          ),
+        };
+      }
     }
 
     return {
-      periods: {
-        today,
-        week,
-        month,
-        year,
-      },
-      topPlazas,
-      topSpendVehicle,
+      thisMonthDebit,
+      thisMonthTxnCount: thisMonthTxnCount,
+      topPlaza,
+      highestSpendVehicle,
+      todayDebit: Number(todayAgg._sum.debitAmt ?? 0),
+      weekDebit: Number(weekAgg._sum.debitAmt ?? 0),
+      yearDebit: Number(yearAgg._sum.debitAmt ?? 0),
     };
   }
 
