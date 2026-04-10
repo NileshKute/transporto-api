@@ -128,6 +128,7 @@ export class QuotationsPdfService {
     doc.lineWidth(1.5).strokeColor(C.navy).moveTo(ML, y).lineTo(PW - MR, y).stroke();
     doc.restore();
     y += 8;
+    console.log('Y after header / divider:', doc.y, 'buffered pages:', doc.bufferedPageRange().count);
 
     const billH = 62;
     doc.save();
@@ -167,6 +168,7 @@ export class QuotationsPdfService {
     }
 
     y += billH + 8;
+    console.log('Y after details block:', doc.y, 'buffered pages:', doc.bufferedPageRange().count);
 
     const vehicleTypeStr = String(quotation.vehicleType || '—');
     const capacityStr =
@@ -268,6 +270,7 @@ export class QuotationsPdfService {
 
     const termsStartY = Math.max(totalEndY, leftEndY + Math.max(totalLineH, 14) + 4) + 10;
     y = termsStartY;
+    console.log('Y after table / totals:', doc.y, 'buffered pages:', doc.bufferedPageRange().count);
 
     const terms =
       (quotation.termsAndConditions as string) ||
@@ -279,9 +282,8 @@ export class QuotationsPdfService {
     const linesToRender = termLines.length ? termLines : [terms.trim() || terms];
 
     const pageHeight = doc.page.height;
-    const pageWidth = doc.page.width;
     /** Room for signature block + footer band on page 1 */
-    const maxTermsBottomY = pageHeight - 160;
+    const maxTermsBottomY = pageHeight - 180;
     let ty = termsStartY;
     const termTextOpts = { width: CW, lineGap: 2, align: 'left' as const };
     doc.switchToPage(0);
@@ -293,10 +295,12 @@ export class QuotationsPdfService {
       doc.text(termsLine, ML, ty, termTextOpts);
       ty += lineH + 2;
     }
+    console.log('Y after terms:', doc.y, 'buffered pages:', doc.bufferedPageRange().count);
+
     const sigBlockX = PW - MR - 140;
     const sigBlockW = 140;
     /** Fixed layout on page 1 only (avoids flowing onto extra pages) */
-    const signatureY = pageHeight - 150;
+    const signatureY = pageHeight - 130;
     const signatureLineY = signatureY + 52;
     const proprietorY = signatureLineY + 6;
 
@@ -338,23 +342,53 @@ export class QuotationsPdfService {
       align: 'center',
     });
 
-    doc.switchToPage(0);
+    const rangeAfterSig = doc.bufferedPageRange();
+    console.log(
+      'Y after signature:',
+      doc.y,
+      'buffered pages:',
+      rangeAfterSig.count,
+      'current page index (0-based last):',
+      rangeAfterSig.count - 1,
+    );
+
+    const pagesBefore = doc.bufferedPageRange();
+    console.log('Pages before footer:', pagesBefore.count, 'start:', pagesBefore.start);
+
+    doc.switchToPage(pagesBefore.start);
+
+    const ph = doc.page.height;
+    const pw = doc.page.width;
 
     doc.save();
-    doc.rect(0, pageHeight - 14, pageWidth, 3).fill(C.ice);
-    doc.rect(0, pageHeight - 11, pageWidth, 11).fill(C.navy);
+    doc.rect(0, ph - 14, pw, 3).fill(C.ice);
+    doc.rect(0, ph - 11, pw, 11).fill(C.navy);
     doc.restore();
 
-    doc.fontSize(7).font('Helvetica').fillColor(C.white).text(
+    /**
+     * PDFKit LineWrapper compares document.y + currentLineHeight to maxY() at wrap start.
+     * Placing text at ph - 7 makes that sum exceed page height and triggers a spurious new page.
+     * Keep footer text Y high enough that y + lineHeight <= maxY (see pdfkit.js wrap()).
+     */
+    const footerTextY = ph - 12;
+
+    doc.fillColor(C.white).fontSize(7).font('Helvetica').text(
       `${COMPANY.mobile}  |  ${COMPANY.email}  |  ${COMPANY.web}`,
       0,
-      pageHeight - 7,
+      footerTextY,
       {
-        width: pageWidth,
+        width: pw,
         align: 'center',
         lineBreak: false,
+        baseline: 'top',
       },
     );
+
+    const pagesAfter = doc.bufferedPageRange();
+    console.log('Pages after footer:', pagesAfter.count);
+    if (pagesAfter.count > pagesBefore.count) {
+      console.error('Footer created extra page! This should not happen.');
+    }
 
     doc.end();
     return done;
