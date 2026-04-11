@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -16,6 +17,7 @@ import { InsuranceModule } from './modules/insurance/insurance.module';
 import { ColdStorageModule } from './modules/cold-storage/cold-storage.module';
 import { ShiftsModule } from './modules/shifts/shifts.module';
 import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
+import { WhatsappMetaModule } from './modules/whatsapp-meta/whatsapp-meta.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ClientModule } from './modules/client/client.module';
 import { InvoiceModule } from './modules/invoice/invoice.module';
@@ -31,6 +33,7 @@ import { LocationsModule } from './modules/locations/locations.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AuthModule,
     SurepassModule,
@@ -45,6 +48,7 @@ import { LocationsModule } from './modules/locations/locations.module';
     ColdStorageModule,
     ShiftsModule,
     WhatsAppModule,
+    WhatsappMetaModule,
     ClientModule,
     InvoiceModule,
     QuotationsModule,

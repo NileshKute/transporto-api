@@ -491,6 +491,7 @@ model Driver {
   emergencies      Emergency[]
   shifts           Shift[]
   whatsappMessages WhatsAppMessage[]
+  whatsappMetaContacts WhatsappMetaContact[]
   assignments      DriverVehicleAssignment[]
   attendances      DriverAttendance[]
   ledgerEntries    DriverLedger[]
@@ -948,6 +949,7 @@ model Client {
   clientVehicles   ClientVehicle[]
   gpsShareSessions GpsShareSession[]
   locations        Location[]
+  whatsappMetaContacts WhatsappMetaContact[]
 
   @@index([isActive])
   @@map("clients")
@@ -1158,6 +1160,47 @@ model WhatsAppMessage {
   @@index([receivedAt])
   @@index([status])
   @@map("whatsapp_messages")
+}
+
+model WhatsappMetaContact {
+  id            String   @id @default(cuid())
+  waId          String   @unique
+  displayName   String?
+  driverId      String?
+  driver        Driver?  @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  clientId      String?
+  client        Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  lastMessageAt DateTime?
+  createdAt     DateTime @default(now())
+  messages      WhatsappMetaMessage[]
+
+  @@map("whatsapp_meta_contacts")
+}
+
+model WhatsappMetaMessage {
+  id              String              @id @default(cuid())
+  metaMessageId   String              @unique
+  contactId       String
+  contact         WhatsappMetaContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  direction       String
+  type            String
+  text            String?             @db.Text
+  mediaUrl        String?
+  mediaMimeType   String?
+  mediaSha256     String?
+  latitude        Float?
+  longitude       Float?
+  templateName    String?
+  status          String?
+  errorCode       String?
+  errorMessage    String?
+  rawPayload      Json?
+  timestamp       DateTime
+  createdAt       DateTime            @default(now())
+
+  @@index([contactId])
+  @@index([timestamp])
+  @@map("whatsapp_meta_messages")
 }
 
 model Notification {

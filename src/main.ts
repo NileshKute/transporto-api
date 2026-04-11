@@ -34,7 +34,20 @@ async function bootstrap() {
 
   console.log(`🔒 CORS allowed origins: ${allowedOrigins.join(', ')}`);
 
-  app.use(bodyParser.json({ limit: '50mb' }));
+  app.use(
+    bodyParser.json({
+      limit: '50mb',
+      verify: (req: { rawBody?: Buffer; method?: string; originalUrl?: string; url?: string }, _res, buf: Buffer) => {
+        const url = req.originalUrl || req.url || '';
+        if (
+          req.method === 'POST' &&
+          url.includes('/whatsapp/meta/webhook')
+        ) {
+          req.rawBody = Buffer.isBuffer(buf) ? buf : Buffer.from(buf);
+        }
+      },
+    }),
+  );
   app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
   app.use(
@@ -78,7 +91,8 @@ async function bootstrap() {
     .addTag('Insurance', 'Insurance policy management')
     .addTag('Cold Storage', 'Cold storage unit monitoring')
     .addTag('Shifts', 'Driver shift management')
-    .addTag('WhatsApp', 'WhatsApp message integration')
+    .addTag('WhatsApp', 'WhatsApp message integration (Twilio)')
+    .addTag('WhatsappMeta', 'WhatsApp Cloud API (Meta) — webhooks & send')
     .addTag('Clients', 'Billing clients and vehicle assignments')
     .addTag('Invoices', 'Invoice generation and PDF')
     .addTag('Quotations', 'Client quotations, PDF, import, convert to invoice')
