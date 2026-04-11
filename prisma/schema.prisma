@@ -1377,6 +1377,9 @@ model TollTransaction {
   creditAmt           Decimal  @default(0) @db.Decimal(12, 2)
   openingBalance      Decimal? @db.Decimal(14, 2)
   closingBalance      Decimal? @db.Decimal(14, 2)
+  tripNumber          String?
+  tagId               String?
+  groupName           String?
   vehicleId           String?
   vehicle             Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   importBatchId       String?

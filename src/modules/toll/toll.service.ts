@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -25,6 +26,8 @@ const TOLL_TYPE_MAP: Record<string, string> = {
 
 @Injectable()
 export class TollService {
+  private readonly logger = new Logger(TollService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async importExcel(
@@ -57,6 +60,7 @@ export class TollService {
     }
 
     const dataRows = allRows.slice(TXN_DATA_START_ROW);
+    /** Cols A–O (indices 0–14); VRN at M=12, TAGID at N=13 */
     const parsed: Array<{
       uniqueTxnId: string;
       transactionDateTime: Date;
@@ -67,7 +71,11 @@ export class TollService {
       creditAmt: Prisma.Decimal;
       openingBalance: Prisma.Decimal | null;
       closingBalance: Prisma.Decimal | null;
+      tripNumber: string | null;
+      tagId: string | null;
+      groupName: string | null;
       rawRow: Prisma.InputJsonValue;
+      vrnNormalized: string | null;
     }> = [];
 
     let skippedParse = 0;
@@ -95,6 +103,14 @@ export class TollService {
       const desc = String(row[4] ?? '');
       const plazaName = this.extractPlazaName(desc);
 
+      const tripNumber = this.strCell(row[11]);
+      const tagId = this.strCell(row[13]);
+      const groupName = this.strCell(row[14]);
+      const vrnNormalized = this.normalizeVrn(row[12]);
+
+      const rowSlice = row.slice(0, 15);
+      while (rowSlice.length < 15) rowSlice.push(null);
+
       parsed.push({
         uniqueTxnId,
         transactionDateTime: dt,
@@ -105,7 +121,11 @@ export class TollService {
         creditAmt: this.parseMoney(row[6]),
         openingBalance: this.parseMoneyNullable(row[7]),
         closingBalance: this.parseMoneyNullable(row[8]),
-        rawRow: row.slice(0, 9) as Prisma.InputJsonValue,
+        tripNumber,
+        tagId,
+        groupName,
+        rawRow: rowSlice as Prisma.InputJsonValue,
+        vrnNormalized,
       });
     }
 
@@ -139,6 +159,7 @@ export class TollService {
     let imported = 0;
     let duplicates = 0;
     let totalDebitSum = new Prisma.Decimal(0);
+    const vehicleLookupCache = new Map<string, string | null>();
 
     for (const row of parsed) {
       if (existingSet.has(row.uniqueTxnId)) {
@@ -146,11 +167,18 @@ export class TollService {
         continue;
       }
 
+      const { vrnNormalized, ...rest } = row;
+      const vehicleId = await this.resolveVehicleIdCached(
+        vrnNormalized,
+        vehicleLookupCache,
+        { logMissing: true },
+      );
+
       try {
         await this.prisma.tollTransaction.create({
           data: {
-            ...row,
-            vehicleId: null,
+            ...rest,
+            vehicleId,
             importBatchId: batch.id,
           },
         });
@@ -569,6 +597,84 @@ export class TollService {
     return this.prisma.tollImportBatch.findMany({
       orderBy: { uploadedAt: 'desc' },
     });
+  }
+
+  /**
+   * Re-link rows with vehicleId=null using VRN from rawRow column M (index 12).
+   * Use after vehicles were added or parser was fixed, without re-uploading Excel.
+   */
+  async relinkVehicles() {
+    const rows = await this.prisma.tollTransaction.findMany({
+      where: { vehicleId: null },
+      select: { id: true, rawRow: true },
+    });
+
+    const cache = new Map<string, string | null>();
+    let updated = 0;
+    let stillUnassigned = 0;
+
+    for (const r of rows) {
+      const raw = r.rawRow;
+      const arr = Array.isArray(raw) ? raw : null;
+      const vrnNorm =
+        arr && arr.length > 12 ? this.normalizeVrn(arr[12]) : null;
+      if (!vrnNorm) {
+        stillUnassigned++;
+        continue;
+      }
+
+      const vehicleId = await this.resolveVehicleIdCached(vrnNorm, cache, {
+        logMissing: false,
+      });
+      if (!vehicleId) {
+        stillUnassigned++;
+        continue;
+      }
+
+      await this.prisma.tollTransaction.update({
+        where: { id: r.id },
+        data: { vehicleId },
+      });
+      updated++;
+    }
+
+    return { updated, stillUnassigned };
+  }
+
+  /** Uppercase, strip spaces (Kotak VRN column). */
+  private normalizeVrn(raw: unknown): string | null {
+    const s = String(raw ?? '')
+      .trim()
+      .replace(/\s+/g, '')
+      .toUpperCase();
+    return s.length ? s : null;
+  }
+
+  private async resolveVehicleIdCached(
+    normalizedVrn: string | null,
+    cache: Map<string, string | null>,
+    options?: { logMissing?: boolean },
+  ): Promise<string | null> {
+    if (!normalizedVrn) return null;
+    if (cache.has(normalizedVrn)) {
+      return cache.get(normalizedVrn) ?? null;
+    }
+
+    const vehicle = await this.prisma.vehicle.findFirst({
+      where: {
+        regNumber: { equals: normalizedVrn, mode: 'insensitive' },
+      },
+      select: { id: true },
+    });
+
+    const id = vehicle?.id ?? null;
+    if (!id && options?.logMissing !== false) {
+      this.logger.warn(
+        `Toll: no vehicle found for VRN "${normalizedVrn}"`,
+      );
+    }
+    cache.set(normalizedVrn, id);
+    return id;
   }
 
   private looksLikeTxnHeader(row: unknown[]): boolean {

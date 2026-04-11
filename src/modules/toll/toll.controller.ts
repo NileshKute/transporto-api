@@ -30,6 +30,16 @@ import { RequirePermission } from '../../common/decorators/require-permission.de
 export class TollController {
   constructor(private readonly tollService: TollService) {}
 
+  @Post('relink-vehicles')
+  @RequirePermission('fuel', 'edit')
+  @ApiOperation({
+    summary:
+      'Re-link toll rows with null vehicleId using VRN from rawRow (column M)',
+  })
+  async relinkVehicles() {
+    return this.tollService.relinkVehicles();
+  }
+
   @Post('import')
   @RequirePermission('fuel', 'create')
   @ApiOperation({ summary: 'Upload Kotak FASTag Excel (Statement sheet)' })
