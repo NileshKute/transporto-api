@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { VehicleType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SurepassService } from '../surepass/surepass.service';
+import { TollService } from '../toll/toll.service';
 
 /** Prisma `Vehicle` scalars RC verification may persist (exact names; see schema). */
 const VEHICLE_RC_MODEL_FIELDS = [
@@ -178,6 +180,7 @@ export class VehiclesService {
   constructor(
     private prisma: PrismaService,
     private surepass: SurepassService,
+    private tollService: TollService,
   ) {}
 
   async findAll(query: any) {
@@ -433,6 +436,248 @@ export class VehiclesService {
     }
 
     return { expired, expiringSoon, total: expired + expiringSoon };
+  }
+
+  private async requireVehicle(id: string) {
+    const v = await this.prisma.vehicle.findFirst({
+      where: { id, isDeleted: false },
+    });
+    if (!v) throw new NotFoundException('Vehicle not found');
+    return v;
+  }
+
+  /** 30-day rollups + GPS / next expiry / current driver for vehicle 360 header */
+  async getVehicleSummary(id: string) {
+    const vehicle = await this.requireVehicle(id);
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+    since.setHours(0, 0, 0, 0);
+
+    const [
+      tollAgg,
+      fuelAgg,
+      tripCount,
+      maintAgg,
+    ] = await Promise.all([
+      this.prisma.tollTransaction.aggregate({
+        where: {
+          vehicleId: id,
+          transactionDateTime: { gte: since },
+        },
+        _sum: { debitAmt: true },
+        _count: { _all: true },
+      }),
+      this.prisma.fuelEntry.aggregate({
+        where: {
+          vehicleId: id,
+          date: { gte: since },
+        },
+        _sum: { totalCost: true, liters: true },
+      }),
+      this.prisma.trip.count({
+        where: {
+          vehicleId: id,
+          date: { gte: since },
+        },
+      }),
+      this.prisma.vehicleMaintRecord.aggregate({
+        where: {
+          vehicleId: id,
+          date: { gte: since },
+        },
+        _sum: { totalCost: true },
+      }),
+    ]);
+
+    const lastGps = vehicle.lastGpsUpdate;
+    const minutesAgo =
+      lastGps != null
+        ? Math.floor((Date.now() - new Date(lastGps).getTime()) / 60_000)
+        : null;
+    const online =
+      minutesAgo != null && minutesAgo <= 30;
+
+    const docCandidates: { key: string; label: string; date: Date }[] = [];
+    const addDoc = (label: string, d: Date | null | undefined) => {
+      if (d) docCandidates.push({ key: label, label, date: new Date(d) });
+    };
+    addDoc('PUC', vehicle.pucExpiryDate);
+    addDoc('Insurance', vehicle.insuranceExpiryDate);
+    addDoc('Fitness', vehicle.fitnessExpiryDate);
+    addDoc('Road tax', vehicle.taxExpiryDate);
+    addDoc('Permit', vehicle.permitExpiryDate);
+
+    const now = new Date();
+    let nextExpiry: {
+      label: string;
+      daysLeft: number;
+      severity: 'green' | 'yellow' | 'red';
+    } | null = null;
+
+    if (docCandidates.length) {
+      const scored = docCandidates.map((c) => ({
+        ...c,
+        daysLeft: Math.ceil(
+          (c.date.getTime() - now.getTime()) / 86_400_000,
+        ),
+      }));
+      const future = scored
+        .filter((x) => x.daysLeft >= 0)
+        .sort((a, b) => a.daysLeft - b.daysLeft);
+      const past = scored
+        .filter((x) => x.daysLeft < 0)
+        .sort((a, b) => b.daysLeft - a.daysLeft);
+      const pick = future[0] ?? past[0];
+      if (pick) {
+        const sev =
+          pick.daysLeft < 0
+            ? ('red' as const)
+            : pick.daysLeft <= 7
+              ? ('red' as const)
+              : pick.daysLeft <= 30
+                ? ('yellow' as const)
+                : ('green' as const);
+        nextExpiry = {
+          label:
+            pick.daysLeft >= 0
+              ? `${pick.key} expires in ${pick.daysLeft} day${pick.daysLeft === 1 ? '' : 's'}`
+              : `${pick.key} expired ${Math.abs(pick.daysLeft)} day${Math.abs(pick.daysLeft) === 1 ? '' : 's'} ago`,
+          daysLeft: pick.daysLeft,
+          severity: sev,
+        };
+      }
+    }
+
+    const assignment = await this.prisma.driverVehicleAssignment.findFirst({
+      where: { vehicleId: id, isCurrent: true },
+      include: { driver: { select: { id: true, name: true } } },
+    });
+
+    return {
+      last30Days: {
+        tollSpend: Number(tollAgg._sum.debitAmt ?? 0),
+        tollTxnCount: tollAgg._count._all,
+        fuelSpend: Number(fuelAgg._sum.totalCost ?? 0),
+        fuelLitres: Number(fuelAgg._sum.liters ?? 0),
+        tripCount,
+        maintenanceCost: Number(maintAgg._sum.totalCost ?? 0),
+      },
+      gps: {
+        status: online ? 'ONLINE' : 'OFFLINE',
+        lastSeenAt: lastGps ? new Date(lastGps).toISOString() : null,
+        lastSeenMinutesAgo: minutesAgo,
+      },
+      nextExpiry,
+      currentDriver: assignment?.driver
+        ? { id: assignment.driver.id, name: assignment.driver.name }
+        : null,
+    };
+  }
+
+  async getVehicleTrips(vehicleId: string, page = 1, limit = 20) {
+    await this.requireVehicle(vehicleId);
+    const skip = (page - 1) * limit;
+    const where = { vehicleId };
+    const [data, total] = await Promise.all([
+      this.prisma.trip.findMany({
+        where,
+        orderBy: { date: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          driver: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.trip.count({ where }),
+    ]);
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
+    };
+  }
+
+  async getVehicleFuelTransactions(vehicleId: string, page = 1, limit = 50) {
+    await this.requireVehicle(vehicleId);
+    const skip = (page - 1) * limit;
+    const where = { vehicleId };
+    const [data, total] = await Promise.all([
+      this.prisma.fuelEntry.findMany({
+        where,
+        orderBy: { date: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.fuelEntry.count({ where }),
+    ]);
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
+  }
+
+  async getVehicleTollTransactions(vehicleId: string, page = 1, limit = 50) {
+    await this.requireVehicle(vehicleId);
+    const skip = (page - 1) * limit;
+    const where = { vehicleId };
+    const [data, total] = await Promise.all([
+      this.prisma.tollTransaction.findMany({
+        where,
+        orderBy: { transactionDateTime: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.tollTransaction.count({ where }),
+    ]);
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
+  }
+
+  async getVehicleMaintenanceHistory(vehicleId: string, page = 1, limit = 50) {
+    await this.requireVehicle(vehicleId);
+    const skip = (page - 1) * limit;
+    const where = { vehicleId };
+    const [data, total] = await Promise.all([
+      this.prisma.vehicleMaintRecord.findMany({
+        where,
+        orderBy: { date: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          type: { select: { name: true, icon: true } },
+        },
+      }),
+      this.prisma.vehicleMaintRecord.count({ where }),
+    ]);
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
+  }
+
+  /** Last 7 days of GPS points for map path */
+  async getVehicleGpsHistory(vehicleId: string) {
+    await this.requireVehicle(vehicleId);
+    const since = new Date();
+    since.setDate(since.getDate() - 7);
+    const rows = await this.prisma.gpsHistory.findMany({
+      where: {
+        vehicleId,
+        recordedAt: { gte: since },
+      },
+      orderBy: { recordedAt: 'asc' },
+      select: {
+        latitude: true,
+        longitude: true,
+        recordedAt: true,
+        speed: true,
+        status: true,
+      },
+    });
+    return {
+      points: rows.map((r) => ({
+        lat: r.latitude,
+        lng: r.longitude,
+        recordedAt: r.recordedAt.toISOString(),
+        speed: r.speed,
+        status: r.status,
+      })),
+    };
   }
 
   private parseVehicleDto(dto: any) {
