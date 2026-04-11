@@ -142,13 +142,11 @@ export class VehiclesController {
   })
   getVehicleGpsHistory(
     @Param('id') id: string,
-    @Query('hours') hours?: string,
+    @Query('hours') hoursRaw?: string,
   ) {
-    const h = parseInt(hours || '168', 10);
-    return this.vehiclesService.getVehicleGpsHistory(
-      id,
-      Number.isFinite(h) && h > 0 ? h : 168,
-    );
+    const h = Number(hoursRaw);
+    const hours = Number.isFinite(h) && h > 0 ? h : 168;
+    return this.vehiclesService.getVehicleGpsHistory(id, hours);
   }
 
   @Get(':id/maintenance-history')
@@ -164,80 +162,6 @@ export class VehiclesController {
   @ApiOperation({ summary: 'Verify RC via SurePass and smart-update vehicle fields' })
   verifyRC(@Param('id') id: string) {
     return this.vehiclesService.verifyAndUpdateRC(id);
-  }
-
-  @Get(':id/summary')
-  @RequirePermission('vehicles', 'view')
-  @ApiOperation({ summary: 'Vehicle 360: 30d stats, GPS badge, next doc expiry, current driver' })
-  getSummary(@Param('id') id: string) {
-    return this.vehiclesService.getVehicleSummary(id);
-  }
-
-  @Get(':id/trips')
-  @RequirePermission('vehicles', 'view')
-  @ApiOperation({ summary: 'Paginated trips for vehicle' })
-  getTrips(
-    @Param('id') id: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return this.vehiclesService.getVehicleTrips(
-      id,
-      parseInt(page || '1', 10) || 1,
-      parseInt(limit || '20', 10) || 20,
-    );
-  }
-
-  @Get(':id/fuel-transactions')
-  @RequirePermission('vehicles', 'view')
-  @ApiOperation({ summary: 'Paginated fuel entries for vehicle' })
-  getFuelTransactions(
-    @Param('id') id: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return this.vehiclesService.getVehicleFuelTransactions(
-      id,
-      parseInt(page || '1', 10) || 1,
-      parseInt(limit || '50', 10) || 50,
-    );
-  }
-
-  @Get(':id/toll-transactions')
-  @RequirePermission('vehicles', 'view')
-  @ApiOperation({ summary: 'Paginated toll transactions for vehicle' })
-  getTollTransactions(
-    @Param('id') id: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return this.vehiclesService.getVehicleTollTransactions(
-      id,
-      parseInt(page || '1', 10) || 1,
-      parseInt(limit || '50', 10) || 50,
-    );
-  }
-
-  @Get(':id/maintenance-history')
-  @RequirePermission('vehicles', 'view')
-  @ApiOperation({ summary: 'Paginated maintenance book records for vehicle' })
-  getMaintenanceHistory(
-    @Param('id') id: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return this.vehiclesService.getVehicleMaintenanceHistory(
-      id,
-      parseInt(page || '1', 10) || 1,
-      parseInt(limit || '50', 10) || 50,
-    );
-  }
-
-  @Get(':id/gps-history')
-  @RequirePermission('vehicles', 'view')
-  @ApiOperation({ summary: 'GPS points for last 7 days (map path)' })
-  getGpsHistory(@Param('id') id: string) {
-    return this.vehiclesService.getVehicleGpsHistory(id);
   }
 
   @Get(':id')

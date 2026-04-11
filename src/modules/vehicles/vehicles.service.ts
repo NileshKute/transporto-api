@@ -446,7 +446,129 @@ export class VehiclesService {
     return v;
   }
 
-  /** 30-day rollups + GPS / next expiry / current driver for vehicle 360 header */
+  /** Full vehicle 360° — toll/BPCL/trips/maintenance aggregates, alerts, lifetime totals */
+  async getVehicle360Summary(vehicleId: string) {
+    await this.requireVehicle(vehicleId);
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+    const [
+      toll30,
+      tollTxn30,
+      bpcl30,
+      trip30,
+      maint30,
+      tollLife,
+      fuelLife,
+      tripLife,
+      vehicleExpiry,
+      lastTripWithDriver,
+      latestGpsPing,
+    ] = await Promise.all([
+      this.prisma.tollTransaction.aggregate({
+        where: {
+          vehicleId,
+          transactionDateTime: { gte: thirtyDaysAgo },
+        },
+        _sum: { debitAmt: true },
+      }),
+      this.prisma.tollTransaction.count({
+        where: {
+          vehicleId,
+          transactionDateTime: { gte: thirtyDaysAgo },
+        },
+      }),
+      this.prisma.bpclTransaction.aggregate({
+        where: {
+          vehicleId,
+          txnDate: { gte: thirtyDaysAgo },
+        },
+        _sum: { totalAmount: true, litres: true },
+      }),
+      this.prisma.trip.count({
+        where: {
+          vehicleId,
+          date: { gte: thirtyDaysAgo },
+        },
+      }),
+      this.prisma.maintenance.aggregate({
+        where: {
+          vehicleId,
+          date: { gte: thirtyDaysAgo },
+        },
+        _sum: { cost: true },
+      }),
+      this.prisma.tollTransaction.aggregate({
+        where: { vehicleId },
+        _sum: { debitAmt: true },
+      }),
+      this.prisma.bpclTransaction.aggregate({
+        where: { vehicleId },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.trip.count({ where: { vehicleId } }),
+      this.prisma.vehicle.findFirst({
+        where: { id: vehicleId },
+        select: {
+          pucExpiryDate: true,
+          insuranceExpiryDate: true,
+          fitnessExpiryDate: true,
+          permitExpiryDate: true,
+          taxExpiryDate: true,
+        },
+      }),
+      this.prisma.trip.findFirst({
+        where: { vehicleId },
+        orderBy: [{ date: 'desc' }, { startTime: 'desc' }],
+        select: {
+          driver: { select: { id: true, name: true, nickname: true } },
+        },
+      }),
+      this.prisma.gpsHistory.findFirst({
+        where: { vehicleId },
+        orderBy: { recordedAt: 'desc' },
+        select: { recordedAt: true },
+      }),
+    ]);
+
+    const currentDriver = lastTripWithDriver?.driver ?? null;
+
+    const lastPing = latestGpsPing?.recordedAt ?? null;
+    const tenMinMs = 10 * 60 * 1000;
+    let gpsStatus: 'ONLINE' | 'OFFLINE' | 'UNKNOWN' = 'UNKNOWN';
+    if (lastPing) {
+      gpsStatus =
+        Date.now() - lastPing.getTime() < tenMinMs ? 'ONLINE' : 'OFFLINE';
+    }
+
+    const nextExpiry = this.buildNextExpiryAlert(vehicleExpiry);
+
+    return {
+      last30Days: {
+        tollSpend: Number(toll30._sum.debitAmt ?? 0),
+        tollTxnCount: tollTxn30,
+        fuelSpend: Number(bpcl30._sum.totalAmount ?? 0),
+        fuelLitres: Number(bpcl30._sum.litres ?? 0),
+        tripCount: trip30,
+        maintenanceCost: Number(maint30._sum.cost ?? 0),
+      },
+      alerts: {
+        nextExpiry,
+        currentDriver,
+        gpsStatus,
+        lastGpsPing: lastPing,
+      },
+      totals: {
+        lifetimeToll: Number(tollLife._sum.debitAmt ?? 0),
+        lifetimeFuel: Number(fuelLife._sum.totalAmount ?? 0),
+        lifetimeTrips: tripLife,
+      },
+    };
+  }
+
+  /** Legacy lightweight summary (fuel entries, assignment) — optional UI use */
   async getVehicleSummary(id: string) {
     const vehicle = await this.requireVehicle(id);
     const since = new Date();
@@ -617,18 +739,11 @@ export class VehiclesService {
 
   async getVehicleTollTransactions(vehicleId: string, page = 1, limit = 50) {
     await this.requireVehicle(vehicleId);
-    const skip = (page - 1) * limit;
-    const where = { vehicleId };
-    const [data, total] = await Promise.all([
-      this.prisma.tollTransaction.findMany({
-        where,
-        orderBy: { transactionDateTime: 'desc' },
-        skip,
-        take: limit,
-      }),
-      this.prisma.tollTransaction.count({ where }),
-    ]);
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
+    return this.tollService.getTransactions({
+      vehicleId,
+      page,
+      limit,
+    });
   }
 
   async getVehicleMaintenanceHistory(vehicleId: string, page = 1, limit = 50) {
@@ -650,11 +765,9 @@ export class VehiclesService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
   }
 
-  /** Last 7 days of GPS points for map path */
-  async getVehicleGpsHistory(vehicleId: string) {
+  async getVehicleGpsHistory(vehicleId: string, hours = 168) {
     await this.requireVehicle(vehicleId);
-    const since = new Date();
-    since.setDate(since.getDate() - 7);
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000);
     const rows = await this.prisma.gpsHistory.findMany({
       where: {
         vehicleId,
@@ -662,22 +775,58 @@ export class VehiclesService {
       },
       orderBy: { recordedAt: 'asc' },
       select: {
+        id: true,
         latitude: true,
         longitude: true,
         recordedAt: true,
         speed: true,
+        deviceTimestamp: true,
         status: true,
+        location: true,
       },
     });
-    return {
-      points: rows.map((r) => ({
-        lat: r.latitude,
-        lng: r.longitude,
-        recordedAt: r.recordedAt.toISOString(),
-        speed: r.speed,
-        status: r.status,
-      })),
-    };
+    return { hours, since, points: rows };
+  }
+
+  private buildNextExpiryAlert(
+    v: {
+      pucExpiryDate: Date | null;
+      insuranceExpiryDate: Date | null;
+      fitnessExpiryDate: Date | null;
+      permitExpiryDate: Date | null;
+      taxExpiryDate: Date | null;
+    } | null,
+  ): {
+    type: 'PUC' | 'INSURANCE' | 'FITNESS' | 'PERMIT' | 'RC';
+    date: Date;
+    daysLeft: number;
+    severity: 'GREEN' | 'YELLOW' | 'RED';
+  } | null {
+    if (!v) return null;
+    const now = Date.now();
+    const candidates: {
+      type: 'PUC' | 'INSURANCE' | 'FITNESS' | 'PERMIT' | 'RC';
+      date: Date | null;
+    }[] = [
+      { type: 'PUC', date: v.pucExpiryDate },
+      { type: 'INSURANCE', date: v.insuranceExpiryDate },
+      { type: 'FITNESS', date: v.fitnessExpiryDate },
+      { type: 'PERMIT', date: v.permitExpiryDate },
+      { type: 'RC', date: v.taxExpiryDate },
+    ];
+    const future = candidates.filter((c) => c.date && c.date.getTime() > now);
+    if (future.length === 0) return null;
+    future.sort((a, b) => a.date!.getTime() - b.date!.getTime());
+    const best = future[0];
+    const expiry = best.date!;
+    const daysLeft = Math.ceil(
+      (expiry.getTime() - now) / (1000 * 60 * 60 * 24),
+    );
+    let severity: 'GREEN' | 'YELLOW' | 'RED';
+    if (daysLeft > 30) severity = 'GREEN';
+    else if (daysLeft >= 7) severity = 'YELLOW';
+    else severity = 'RED';
+    return { type: best.type, date: expiry, daysLeft, severity };
   }
 
   private parseVehicleDto(dto: any) {
