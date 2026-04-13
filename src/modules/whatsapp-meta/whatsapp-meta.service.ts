@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, WhatsappMetaMessage } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { MetaInboundMessage } from './dto/webhook-payload.dto';
 
@@ -81,14 +81,14 @@ export class WhatsappMetaService {
     contactId: string,
     msg: MetaInboundMessage,
     rawPayload: Prisma.InputJsonValue,
-  ) {
+  ): Promise<{ message: WhatsappMetaMessage; created: boolean } | null> {
     const metaMessageId = msg.id;
     if (!metaMessageId) return null;
 
     const existing = await this.prisma.whatsappMetaMessage.findUnique({
       where: { metaMessageId },
     });
-    if (existing) return existing;
+    if (existing) return { message: existing, created: false };
 
     const ts = msg.timestamp
       ? new Date(parseInt(msg.timestamp, 10) * 1000)
@@ -146,7 +146,7 @@ export class WhatsappMetaService {
       data: { lastMessageAt: ts },
     });
 
-    return row;
+    return { message: row, created: true };
   }
 
   async updateMessageStatus(

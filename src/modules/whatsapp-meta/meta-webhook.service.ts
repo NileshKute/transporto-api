@@ -7,6 +7,7 @@ import type {
   MetaWebhookChangeValue,
   MetaInboundMessage,
 } from './dto/webhook-payload.dto';
+import { MetaTripParserService } from './meta-trip-parser.service';
 import { WhatsappMetaService } from './whatsapp-meta.service';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class MetaWebhookService {
   constructor(
     private config: ConfigService,
     private whatsappMeta: WhatsappMetaService,
+    private tripParser: MetaTripParserService,
   ) {}
 
   verifySignature(rawBody: Buffer, signatureHeader: string | undefined): boolean {
@@ -106,10 +108,17 @@ export class MetaWebhookService {
       metadata: value.metadata as Prisma.InputJsonValue,
     };
 
-    await this.whatsappMeta.saveInboundMessage(
+    const saved = await this.whatsappMeta.saveInboundMessage(
       contact.id,
       msg,
       rawPayload,
     );
+    if (saved?.created && saved.message.type === 'text') {
+      void this.tripParser.parseAndCreateTrips(saved.message.id).catch((err) => {
+        this.logger.error(
+          `Trip parse background task failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+    }
   }
 }
