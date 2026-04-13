@@ -154,14 +154,19 @@ export class MetaSenderService {
     }
   }
 
-  /** Resolve media URL then download binary (Phase 2: persist to disk/S3). */
-  async downloadMedia(mediaId: string): Promise<Buffer> {
+  /**
+   * Resolve media URL from Graph then download binary (Bearer token on both calls).
+   */
+  async downloadMedia(mediaId: string): Promise<{ buffer: Buffer; mimeType: string }> {
     const url = `${BASE}/${mediaId}`;
     const metaRes = await axios.get(url, {
       headers: { Authorization: `Bearer ${this.accessToken}` },
       timeout: 30_000,
     });
     const mediaUrl = metaRes.data?.url as string | undefined;
+    const mimeType =
+      (metaRes.data?.mime_type as string | undefined)?.split(';')[0]?.trim() ||
+      'image/jpeg';
     if (!mediaUrl) {
       throw new BadRequestException('No media URL from Meta');
     }
@@ -170,6 +175,6 @@ export class MetaSenderService {
       responseType: 'arraybuffer',
       timeout: 60_000,
     });
-    return Buffer.from(bin.data);
+    return { buffer: Buffer.from(bin.data), mimeType };
   }
 }

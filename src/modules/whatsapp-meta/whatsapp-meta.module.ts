@@ -5,6 +5,7 @@ import { WhatsappMetaService } from './whatsapp-meta.service';
 import { MetaSenderService } from './meta-sender.service';
 import { MetaWebhookService } from './meta-webhook.service';
 import { MetaTripParserService } from './meta-trip-parser.service';
+import { MetaPhotoOcrService } from './meta-photo-ocr.service';
 
 @Module({
   imports: [PrismaModule],
@@ -13,6 +14,7 @@ import { MetaTripParserService } from './meta-trip-parser.service';
     WhatsappMetaService,
     MetaSenderService,
     MetaTripParserService,
+    MetaPhotoOcrService,
     MetaWebhookService,
   ],
   exports: [
@@ -20,6 +22,7 @@ import { MetaTripParserService } from './meta-trip-parser.service';
     MetaSenderService,
     MetaWebhookService,
     MetaTripParserService,
+    MetaPhotoOcrService,
   ],
 })
 export class WhatsappMetaModule {}

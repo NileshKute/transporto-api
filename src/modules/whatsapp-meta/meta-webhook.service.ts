@@ -7,6 +7,7 @@ import type {
   MetaWebhookChangeValue,
   MetaInboundMessage,
 } from './dto/webhook-payload.dto';
+import { MetaPhotoOcrService } from './meta-photo-ocr.service';
 import { MetaTripParserService } from './meta-trip-parser.service';
 import { WhatsappMetaService } from './whatsapp-meta.service';
 
@@ -18,6 +19,7 @@ export class MetaWebhookService {
     private config: ConfigService,
     private whatsappMeta: WhatsappMetaService,
     private tripParser: MetaTripParserService,
+    private photoOcr: MetaPhotoOcrService,
   ) {}
 
   verifySignature(rawBody: Buffer, signatureHeader: string | undefined): boolean {
@@ -113,10 +115,19 @@ export class MetaWebhookService {
       msg,
       rawPayload,
     );
-    if (saved?.created && saved.message.type === 'text') {
+    if (!saved?.created) return;
+
+    if (saved.message.type === 'text') {
       void this.tripParser.parseAndCreateTrips(saved.message.id).catch((err) => {
         this.logger.error(
-          `Trip parse background task failed: ${err instanceof Error ? err.message : String(err)}`,
+          `Trip parse failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+    }
+    if (saved.message.type === 'image' || saved.message.type === 'document') {
+      void this.photoOcr.processPhoto(saved.message.id).catch((err) => {
+        this.logger.error(
+          `Photo OCR failed: ${err instanceof Error ? err.message : String(err)}`,
         );
       });
     }
