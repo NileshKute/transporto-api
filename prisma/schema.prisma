@@ -303,9 +303,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  driver    Driver?
-  auditLogs AuditLog[]
-  sessions  Session[]
+  driver       Driver?
+  auditLogs    AuditLog[]
+  sessions     Session[]
+  deviceTokens DeviceToken[]
 
   @@index([email])
   @@index([phone])
@@ -442,6 +443,7 @@ model Vehicle {
   gpsShareSessions GpsShareSession[]
   dailyTripLogs   DailyTripLog[]
   tollTransactions TollTransaction[]
+  mobileTrips      MobileTrip[]
 
   @@index([regNumber])
   @@index([status])
@@ -498,6 +500,7 @@ model Driver {
   ledgerEntries    DriverLedger[]
   salaryRecords    DriverSalary[]
   dailyTripLogs    DailyTripLog[]
+  mobileTrips      MobileTrip[]
 
   @@index([phone])
   @@index([licenseNumber])
@@ -951,6 +954,7 @@ model Client {
   gpsShareSessions GpsShareSession[]
   locations        Location[]
   whatsappMetaContacts WhatsappMetaContact[]
+  mobileTrips          MobileTrip[]
 
   @@index([isActive])
   @@map("clients")
@@ -969,6 +973,9 @@ model Location {
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  mobileTripPickups MobileTrip[] @relation("pickup")
+  mobileTripDrops   MobileTrip[] @relation("drop")
 
   @@index([name])
   @@index([type])
@@ -1540,4 +1547,90 @@ model GpsShareSession {
   @@index([vehicleId])
   @@index([isActive])
   @@map("gps_share_sessions")
+}
+
+// ============================================
+// MOBILE APP
+// ============================================
+
+model MobileOtp {
+  id          String   @id @default(cuid())
+  phoneNumber String
+  otp         String
+  expiresAt   DateTime
+  verified    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([phoneNumber, createdAt])
+  @@map("mobile_otps")
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+model MobileTrip {
+  id              String    @id @default(cuid())
+  driverId        String
+  driver          Driver    @relation(fields: [driverId], references: [id])
+  vehicleId       String
+  vehicle         Vehicle   @relation(fields: [vehicleId], references: [id])
+  clientId        String?
+  client          Client?   @relation(fields: [clientId], references: [id])
+  clientName      String?
+
+  pickupLocationId String?
+  pickupLocation   Location? @relation("pickup", fields: [pickupLocationId], references: [id])
+  pickupName       String
+  pickupLat        Float?
+  pickupLng        Float?
+
+  dropLocationId   String?
+  dropLocation     Location? @relation("drop", fields: [dropLocationId], references: [id])
+  dropName         String
+  dropLat          Float?
+  dropLng          Float?
+
+  status          String    @default("ACTIVE")
+  startTime       DateTime  @default(now())
+  endTime         DateTime?
+
+  distanceKm      Float?
+  durationMinutes Int?
+
+  gpsPoints       TripGpsPoint[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([driverId, status])
+  @@index([driverId, startTime])
+  @@index([vehicleId])
+  @@index([status])
+  @@map("mobile_trips")
+}
+
+model TripGpsPoint {
+  id        String     @id @default(cuid())
+  tripId    String
+  trip      MobileTrip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  lat       Float
+  lng       Float
+  speed     Float?
+  accuracy  Float?
+  timestamp DateTime
+  createdAt DateTime   @default(now())
+
+  @@index([tripId, timestamp])
+  @@map("trip_gps_points")
 }

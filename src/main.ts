@@ -97,6 +97,10 @@ async function bootstrap() {
     .addTag('Invoices', 'Invoice generation and PDF')
     .addTag('Quotations', 'Client quotations, PDF, import, convert to invoice')
     .addTag('Permissions', 'Role-based access control matrix')
+    .addTag('MobileAuth', 'Mobile phone OTP login')
+    .addTag('MobileTrip', 'Mobile trip start/end/GPS tracking')
+    .addTag('MobileDriver', 'Mobile driver profile, salary, ledger')
+    .addTag('MobileFleet', 'Mobile fleet manager views')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

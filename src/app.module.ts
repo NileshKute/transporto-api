@@ -29,6 +29,11 @@ import { VehicleMaintenanceModule } from './modules/vehicle-maintenance/vehicle-
 import { GpsModule } from './modules/gps/gps.module';
 import { SurepassModule } from './modules/surepass/surepass.module';
 import { LocationsModule } from './modules/locations/locations.module';
+import { MobileAuthModule } from './modules/mobile-auth/mobile-auth.module';
+import { MobileTripModule } from './modules/mobile-trip/mobile-trip.module';
+import { MobileDriverModule } from './modules/mobile-driver/mobile-driver.module';
+import { MobileFleetModule } from './modules/mobile-fleet/mobile-fleet.module';
+import { PushNotificationService } from './services/push-notification.service';
 
 @Module({
   imports: [
@@ -59,10 +64,15 @@ import { LocationsModule } from './modules/locations/locations.module';
     GpsModule,
     LocationsModule,
     PermissionsModule,
+    MobileAuthModule,
+    MobileTripModule,
+    MobileDriverModule,
+    MobileFleetModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtGlobalAuthGuard },
     { provide: APP_GUARD, useClass: PermissionGuard },
+    PushNotificationService,
   ],
 })
 export class AppModule {}
