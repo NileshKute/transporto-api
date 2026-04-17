@@ -101,7 +101,18 @@ export class QuotationsImportService {
               ],
             },
           });
-          if (client) clientId = client.id;
+          if (client) {
+            clientId = client.id;
+          } else {
+            const allClients = await this.prisma.client.findMany({
+              select: { id: true, name: true },
+            });
+            const matched = this.findMatchingClient(
+              clientNameRaw || sourceFolder || '',
+              allClients,
+            );
+            if (matched) clientId = matched.id;
+          }
         }
 
         const vehicleCategory = this.mapVehicleType(
@@ -290,8 +301,21 @@ export class QuotationsImportService {
     if (!text) return null;
 
     const patterns = [
-      /(?:monthly\s+(?:rate|hire|charge)s?\s+(?:of\s+)?)?Rs[\.\s]*(\d{1,3}(?:,\d{2,3})+(?:\.\d+)?)\/?\-?/i,
-      /(?:monthly\s+(?:rate|hire|charge)s?\s+(?:of\s+)?)?Rs[\.\s]*(\d{4,7}(?:\.\d+)?)\/?\-?/i,
+      // "Rs. 45,000/- per month" or "Rs 45000 per month" or "Rs.45000/- p.m."
+      /Rs[\.\s]*(\d{1,3}(?:,\d{2,3})*(?:\.\d+)?)\/?-?\s*(?:per\s+month|p\.?\s*m\.?|monthly)/i,
+      // "₹45,000/- per month" or "₹ 45000 monthly"
+      /₹\s*(\d{1,3}(?:,\d{2,3})*(?:\.\d+)?)\/?-?\s*(?:per\s+month|p\.?\s*m\.?|monthly)/i,
+      // "Monthly rate/hire/charges of Rs. 45,000" or "Monthly: Rs 45000"
+      /monthly\s*(?:rate|hire|charge|rental|rent|cost)s?\s*(?:of\s+|:\s*|-\s*)?(?:Rs[\.\s]*|₹\s*)?(\d{1,3}(?:,\d{2,3})*(?:\.\d+)?)/i,
+      // "Rate: Rs. 45,000/- per month"
+      /rate\s*(?:of\s+|:\s*|-\s*)?(?:Rs[\.\s]*|₹\s*)?(\d{1,3}(?:,\d{2,3})*(?:\.\d+)?)\/?-?\s*(?:per\s+month|p\.?\s*m\.?|monthly)/i,
+      // "45,000/- per month" (no Rs prefix)
+      /(\d{1,3}(?:,\d{2,3})*(?:\.\d+)?)\/?-?\s*per\s+month/i,
+      // "45000/- monthly" or "45,000 monthly"
+      /(\d{1,3}(?:,\d{2,3})*(?:\.\d+)?)\/?-?\s*monthly/i,
+      // Original fallback patterns
+      /(?:monthly\s+(?:rate|hire|charge)s?\s+(?:of\s+)?)?Rs[\.\s]*(\d{1,3}(?:,\d{2,3})+(?:\.\d+)?)\/?-?/i,
+      /(?:monthly\s+(?:rate|hire|charge)s?\s+(?:of\s+)?)?Rs[\.\s]*(\d{4,7}(?:\.\d+)?)\/?-?/i,
       /fixed\s+monthly\s+(?:rate|hire|charge)s?\s+(?:of\s+)?(?:Rs[\.\s]*)?(\d{1,3}(?:,\d{2,3})+(?:\.\d+)?)/i,
       /monthly[\s\S]{0,80}?Rs[\.\s]*(\d{1,3}(?:,\d{2,3})+(?:\.\d+)?)/i,
     ];
@@ -313,37 +337,58 @@ export class QuotationsImportService {
     clients: { id: string; name: string }[],
   ): { id: string; name: string } | null {
     if (!searchName) return null;
+    const search = this.normalizeForMatch(searchName);
+    if (!search || search.length < 2) return null;
 
-    const normalize = (s: string) =>
-      s
-        .toLowerCase()
-        .replace(/[^\w\s]/g, ' ')
-        .replace(/\b(pvt|ltd|limited|private|company|co|inc)\b/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-    const search = normalize(searchName);
-    if (!search || search.length < 3) return null;
-
+    // Pass 1: Exact normalized match
     for (const client of clients) {
-      if (normalize(client.name) === search) return client;
+      if (this.normalizeForMatch(client.name) === search) return client;
     }
 
+    // Pass 2: Either contains the other
     for (const client of clients) {
-      const cn = normalize(client.name);
-      if (cn.length < 3) continue;
+      const cn = this.normalizeForMatch(client.name);
+      if (cn.length < 2) continue;
+      if (search.includes(cn) || cn.includes(search)) return client;
+    }
 
-      if (search.includes(cn) || cn.includes(search)) {
-        return client;
+    // Pass 3: Any single significant word match (>=4 chars)
+    for (const client of clients) {
+      const cn = this.normalizeForMatch(client.name);
+      const clientWords = cn.split(' ').filter((w) => w.length >= 4);
+      const searchWords = search.split(' ').filter((w) => w.length >= 4);
+      for (const cw of clientWords) {
+        for (const sw of searchWords) {
+          if (cw === sw) return client;
+        }
       }
+    }
 
-      const searchWords = search.split(' ').filter((w) => w.length > 3);
-      const clientWords = cn.split(' ').filter((w) => w.length > 3);
-      const common = searchWords.filter((w) => clientWords.includes(w));
-      if (common.length >= 2) return client;
+    // Pass 4: Prefix match on any significant word
+    for (const client of clients) {
+      const cn = this.normalizeForMatch(client.name);
+      const clientWords = cn.split(' ').filter((w) => w.length >= 3);
+      const searchWords = search.split(' ').filter((w) => w.length >= 3);
+      for (const cw of clientWords) {
+        for (const sw of searchWords) {
+          if (cw.startsWith(sw) || sw.startsWith(cw)) return client;
+        }
+      }
     }
 
     return null;
+  }
+
+  private normalizeForMatch(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/m\/s\.?\s*/gi, '')
+      .replace(/pvt\.?\s*ltd\.?/gi, '')
+      .replace(/private\s*limited/gi, '')
+      .replace(/\b(?:llp|inc|corp|company|co)\b/gi, '')
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   private mapVehicleType(text: string | null): VehicleQuoteType {
