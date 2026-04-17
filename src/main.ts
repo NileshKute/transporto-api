@@ -101,6 +101,7 @@ async function bootstrap() {
     .addTag('MobileTrip', 'Mobile trip start/end/GPS tracking')
     .addTag('MobileDriver', 'Mobile driver profile, salary, ledger')
     .addTag('MobileFleet', 'Mobile fleet manager views')
+    .addTag('DocumentExpiry', 'Document expiry alerts and reminders')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

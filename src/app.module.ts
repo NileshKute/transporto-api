@@ -33,6 +33,7 @@ import { MobileAuthModule } from './modules/mobile-auth/mobile-auth.module';
 import { MobileTripModule } from './modules/mobile-trip/mobile-trip.module';
 import { MobileDriverModule } from './modules/mobile-driver/mobile-driver.module';
 import { MobileFleetModule } from './modules/mobile-fleet/mobile-fleet.module';
+import { DocumentExpiryModule } from './modules/document-expiry/document-expiry.module';
 import { PushNotificationService } from './services/push-notification.service';
 
 @Module({
@@ -68,6 +69,7 @@ import { PushNotificationService } from './services/push-notification.service';
     MobileTripModule,
     MobileDriverModule,
     MobileFleetModule,
+    DocumentExpiryModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtGlobalAuthGuard },

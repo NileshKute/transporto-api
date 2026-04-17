@@ -1634,3 +1634,34 @@ model TripGpsPoint {
   @@index([tripId, timestamp])
   @@map("trip_gps_points")
 }
+
+// ============================================
+// DOCUMENT EXPIRY ALERTS
+// ============================================
+
+model DocumentExpiryAlert {
+  id              String    @id @default(uuid())
+  entityType      String
+  entityId        String
+  entityName      String
+  documentType    String
+  documentNumber  String?
+  expiryDate      DateTime
+  daysRemaining   Int
+  severity        String
+  severityOrder   Int       @default(0)
+  acknowledged    Boolean   @default(false)
+  acknowledgedBy  String?
+  acknowledgedAt  DateTime?
+  whatsappSent    Boolean   @default(false)
+  whatsappSentAt  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([entityType, entityId, documentType, daysRemaining])
+  @@index([severity])
+  @@index([acknowledged])
+  @@index([expiryDate])
+  @@index([severityOrder])
+  @@map("document_expiry_alerts")
+}
