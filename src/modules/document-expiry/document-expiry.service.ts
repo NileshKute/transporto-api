@@ -318,6 +318,13 @@ export class DocumentExpiryService {
     });
   }
 
+  async unacknowledgeAlert(id: string) {
+    return this.prisma.documentExpiryAlert.update({
+      where: { id },
+      data: { acknowledged: false, acknowledgedBy: null, acknowledgedAt: null },
+    });
+  }
+
   async runExpiryCheck() {
     return this.checkAllExpiries();
   }

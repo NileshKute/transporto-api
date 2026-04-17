@@ -64,6 +64,13 @@ export class DocumentExpiryController {
     return this.service.acknowledgeAll(req.user.id);
   }
 
+  @Post('unacknowledge/:id')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER')
+  @ApiOperation({ summary: 'Un-acknowledge an alert (undo accidental ack)' })
+  unacknowledge(@Param('id') id: string) {
+    return this.service.unacknowledgeAlert(id);
+  }
+
   @Post('check-now')
   @Roles('SUPER_ADMIN', 'ADMIN')
   @ApiOperation({ summary: 'Manually trigger the expiry check (testing)' })
