@@ -70,17 +70,58 @@ export class TripsService {
 
   async update(id: string, dto: any) {
     await this.findOne(id);
+
+    const data: Record<string, unknown> = {};
+
+    if (dto.date !== undefined) {
+      data.date = new Date(dto.date);
+    }
+
+    const stringFields = [
+      'startLocation', 'endLocation', 'clientName', 'lrNumber',
+      'cargoType', 'cargoUnit', 'notes',
+    ];
+    for (const field of stringFields) {
+      if (dto[field] !== undefined) {
+        data[field] = typeof dto[field] === 'string' && dto[field].trim()
+          ? dto[field].trim()
+          : null;
+      }
+    }
+
+    const optionalNumberFields = [
+      'endKm', 'billAmount', 'tollAmount', 'otherExpenses', 'cargoWeight',
+    ];
+    for (const field of optionalNumberFields) {
+      if (dto[field] !== undefined) {
+        const val = Number(dto[field]);
+        data[field] = Number.isFinite(val) && val !== 0 ? val : null;
+      }
+    }
+
+    if (dto.startKm !== undefined) {
+      data.startKm = Number(dto.startKm) || 0;
+    }
+
+    if (dto.status !== undefined) data.status = dto.status;
+    if (dto.loadStatus !== undefined) data.loadStatus = dto.loadStatus;
+    if (dto.vehicleId !== undefined) data.vehicleId = dto.vehicleId;
+    if (dto.driverId !== undefined) data.driverId = dto.driverId;
+
     let distanceKm = dto.distanceKm;
     if (dto.endKm !== undefined && dto.startKm !== undefined) {
-      distanceKm = dto.endKm - dto.startKm;
+      distanceKm = Number(dto.endKm) - Number(dto.startKm);
     } else if (dto.endKm !== undefined) {
       const trip = await this.prisma.trip.findUnique({ where: { id } });
-      distanceKm = dto.endKm - trip.startKm;
+      distanceKm = Number(dto.endKm) - (trip?.startKm ?? 0);
     }
-    return this.prisma.trip.update({
-      where: { id },
-      data: { ...dto, ...(distanceKm !== undefined && { distanceKm }) },
-    });
+    if (distanceKm !== undefined) {
+      data.distanceKm = Number.isFinite(distanceKm) && distanceKm > 0
+        ? distanceKm
+        : null;
+    }
+
+    return this.prisma.trip.update({ where: { id }, data });
   }
 
   async remove(id: string) {
