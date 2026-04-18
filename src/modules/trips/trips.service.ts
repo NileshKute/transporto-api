@@ -83,6 +83,13 @@ export class TripsService {
     });
   }
 
+  async remove(id: string) {
+    const trip = await this.prisma.trip.findUnique({ where: { id } });
+    if (!trip) throw new NotFoundException('Trip not found');
+    await this.prisma.trip.delete({ where: { id } });
+    return { message: 'Trip deleted successfully' };
+  }
+
   async complete(id: string, dto: any) {
     const trip = await this.findOne(id);
     const endKm = dto.endKm || trip.endKm;

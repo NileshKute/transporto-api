@@ -209,4 +209,12 @@ export class TripsController {
   update(@Param('id') id: string, @Body() dto: any) {
     return this.tripsService.update(id, dto);
   }
+
+  @Delete(':id')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER')
+  @RequirePermission('trips', 'delete')
+  @ApiOperation({ summary: 'Delete a trip record' })
+  remove(@Param('id') id: string) {
+    return this.tripsService.remove(id);
+  }
 }
