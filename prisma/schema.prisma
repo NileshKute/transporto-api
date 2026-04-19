@@ -63,6 +63,8 @@ enum TripStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+  PENDING_VERIFICATION
+  REJECTED
 }
 
 enum LoadStatus {
@@ -568,6 +570,11 @@ model Trip {
   endTime       DateTime?
   notes         String?
   source        EntrySource @default(MANUAL)
+
+  verifiedBy      String?
+  verifiedAt      DateTime?
+  rejectedReason  String?
+  submittedVia    String?
 
   expenses TripExpense[]
 

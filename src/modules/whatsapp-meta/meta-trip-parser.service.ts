@@ -155,8 +155,8 @@ export class MetaTripParserService {
           endLocation: to,
           clientName: (clientNameResolved ?? trip.clientName?.trim()) || null,
           notes: trip.notes?.trim() || null,
-          status: 'COMPLETED',
-          endTime: new Date(),
+          status: 'PENDING_VERIFICATION',
+          submittedVia: 'WHATSAPP',
           source: 'WHATSAPP_META',
         },
       });
@@ -180,8 +180,8 @@ export class MetaTripParserService {
     const waId = message.contact.waId;
     const replyText =
       created.length === 1
-        ? `✅ Trip logged: ${created[0]}`
-        : `✅ ${created.length} trips logged:\n${created.map((t, i) => `${i + 1}. ${t}`).join('\n')}`;
+        ? `✅ Trip recorded: ${created[0]}\n\nStatus: Pending verification by manager.`
+        : `✅ ${created.length} trips recorded:\n${created.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nStatus: Pending verification by manager.`;
     try {
       await this.sender.sendText(waId, replyText);
     } catch (e) {

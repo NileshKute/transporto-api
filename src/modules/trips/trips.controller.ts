@@ -137,6 +137,22 @@ export class TripsController {
     return this.dailyTripService.remove(id);
   }
 
+  @Get('pending')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT')
+  @RequirePermission('trips', 'view')
+  @ApiOperation({ summary: 'Get all trips pending verification' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  getPendingTrips(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.tripsService.getPendingTrips(
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 20,
+    );
+  }
+
   @Get()
   @RequirePermission('trips', 'view')
   @ApiOperation({ summary: 'List all trips with filters and pagination' })
@@ -208,6 +224,32 @@ export class TripsController {
   @ApiOperation({ summary: 'Update trip details' })
   update(@Param('id') id: string, @Body() dto: any) {
     return this.tripsService.update(id, dto);
+  }
+
+  @Post(':id/approve')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT')
+  @RequirePermission('trips', 'edit')
+  @ApiOperation({ summary: 'Approve a pending trip' })
+  approveTrip(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Body() body?: { notes?: string },
+  ) {
+    const user = req.user as { id: string } | undefined;
+    return this.tripsService.approveTrip(id, user?.id ?? '', body?.notes);
+  }
+
+  @Post(':id/reject')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER', 'ACCOUNTANT')
+  @RequirePermission('trips', 'edit')
+  @ApiOperation({ summary: 'Reject a pending trip' })
+  rejectTrip(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Body() body: { reason: string },
+  ) {
+    const user = req.user as { id: string } | undefined;
+    return this.tripsService.rejectTrip(id, user?.id ?? '', body.reason);
   }
 
   @Delete(':id')

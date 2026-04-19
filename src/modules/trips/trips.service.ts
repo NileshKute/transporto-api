@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -129,6 +129,67 @@ export class TripsService {
     if (!trip) throw new NotFoundException('Trip not found');
     await this.prisma.trip.delete({ where: { id } });
     return { message: 'Trip deleted successfully' };
+  }
+
+  async getPendingTrips(page = 1, limit = 20) {
+    const where = { status: 'PENDING_VERIFICATION' as any };
+    const [data, total] = await Promise.all([
+      this.prisma.trip.findMany({
+        where,
+        include: {
+          vehicle: { select: { id: true, regNumber: true, type: true } },
+          driver: { select: { id: true, name: true, phone: true } },
+        },
+        orderBy: { date: 'desc' },
+        take: limit,
+        skip: (page - 1) * limit,
+      }),
+      this.prisma.trip.count({ where }),
+    ]);
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  async approveTrip(id: string, userId: string, notes?: string) {
+    const trip = await this.findOne(id);
+    if ((trip.status as string) !== 'PENDING_VERIFICATION') {
+      throw new BadRequestException('Trip is not pending verification');
+    }
+    return this.prisma.trip.update({
+      where: { id },
+      data: {
+        status: 'COMPLETED',
+        verifiedBy: userId,
+        verifiedAt: new Date(),
+        notes: notes
+          ? `${trip.notes || ''}\nApproval note: ${notes}`.trim()
+          : trip.notes,
+      },
+      include: {
+        vehicle: { select: { regNumber: true } },
+        driver: { select: { name: true, phone: true } },
+      },
+    });
+  }
+
+  async rejectTrip(id: string, userId: string, reason: string) {
+    const trip = await this.findOne(id);
+    if ((trip.status as string) !== 'PENDING_VERIFICATION') {
+      throw new BadRequestException('Trip is not pending verification');
+    }
+    return this.prisma.trip.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        verifiedBy: userId,
+        verifiedAt: new Date(),
+        rejectedReason: reason,
+        notes: `${trip.notes || ''}\nRejected: ${reason}`.trim(),
+      },
+      include: {
+        vehicle: { select: { regNumber: true } },
+        driver: { select: { name: true, phone: true } },
+      },
+    });
   }
 
   async complete(id: string, dto: any) {
