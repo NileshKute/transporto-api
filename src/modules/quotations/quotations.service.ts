@@ -8,6 +8,7 @@ import {
   QuotationStatus,
   VehicleQuoteType,
 } from '@prisma/client';
+import Fuse from 'fuse.js';
 import { PrismaService } from '../../prisma/prisma.service';
 import { InvoiceService } from '../invoice/invoice.service';
 import { amountInWords } from '../invoice/invoice.utils';
@@ -570,6 +571,107 @@ export class QuotationsService {
       byMonth,
       convertedCount: converted,
       conversionRate,
+    };
+  }
+
+  async relinkClientsForUnmatched() {
+    const clients = await this.prisma.client.findMany({
+      select: { id: true, name: true },
+    });
+
+    if (clients.length === 0) {
+      return { total: 0, matched: 0, unmatched: 0, ambiguous: 0, details: [] };
+    }
+
+    const unmatchedQuotations = await this.prisma.quotation.findMany({
+      where: { clientId: null },
+      select: { id: true, clientName: true },
+    });
+
+    const fuse = new Fuse(clients, {
+      keys: ['name'],
+      threshold: 0.3,
+      includeScore: true,
+      ignoreLocation: true,
+      minMatchCharLength: 3,
+    });
+
+    let matched = 0;
+    let unmatched = 0;
+    let ambiguous = 0;
+    const details: Array<{
+      quotationId: string;
+      clientName: string;
+      matchedClientName?: string;
+      matchedClientId?: string;
+      score?: number;
+      status: 'MATCHED' | 'UNMATCHED' | 'AMBIGUOUS';
+    }> = [];
+
+    for (const q of unmatchedQuotations) {
+      if (!q.clientName || q.clientName.trim() === '') {
+        unmatched++;
+        details.push({
+          quotationId: q.id,
+          clientName: q.clientName || '',
+          status: 'UNMATCHED',
+        });
+        continue;
+      }
+
+      const results = fuse.search(q.clientName.trim());
+
+      if (results.length === 0) {
+        unmatched++;
+        details.push({
+          quotationId: q.id,
+          clientName: q.clientName,
+          status: 'UNMATCHED',
+        });
+        continue;
+      }
+
+      const top = results[0];
+      const second = results[1];
+
+      const confident =
+        (top.score ?? 1) < 0.2 ||
+        !second ||
+        ((second.score ?? 1) - (top.score ?? 1)) > 0.15;
+
+      if (confident) {
+        await this.prisma.quotation.update({
+          where: { id: q.id },
+          data: { clientId: top.item.id },
+        });
+        matched++;
+        details.push({
+          quotationId: q.id,
+          clientName: q.clientName,
+          matchedClientName: top.item.name,
+          matchedClientId: top.item.id,
+          score: top.score,
+          status: 'MATCHED',
+        });
+      } else {
+        ambiguous++;
+        details.push({
+          quotationId: q.id,
+          clientName: q.clientName,
+          matchedClientName: top.item.name,
+          matchedClientId: top.item.id,
+          score: top.score,
+          status: 'AMBIGUOUS',
+        });
+      }
+    }
+
+    return {
+      total: unmatchedQuotations.length,
+      matched,
+      unmatched,
+      ambiguous,
+      details,
     };
   }
 }

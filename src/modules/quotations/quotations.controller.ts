@@ -88,6 +88,14 @@ export class QuotationsController {
     return this.importService.reparseHistoricalData();
   }
 
+  @Post('relink-clients')
+  @Roles('SUPER_ADMIN', 'ADMIN')
+  @RequirePermission('quotations', 'import')
+  @ApiOperation({ summary: 'Fuzzy auto-link clients for unmatched quotations' })
+  relinkClients() {
+    return this.quotationsService.relinkClientsForUnmatched();
+  }
+
   @Post()
   @Roles(
     'SUPER_ADMIN',
