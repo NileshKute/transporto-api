@@ -91,9 +91,9 @@ export class QuotationsController {
   @Post('relink-clients')
   @Roles('SUPER_ADMIN', 'ADMIN')
   @RequirePermission('quotations', 'import')
-  @ApiOperation({ summary: 'Fuzzy auto-link clients for unmatched quotations' })
-  relinkClients() {
-    return this.quotationsService.relinkClientsForUnmatched();
+  @ApiOperation({ summary: 'Fuzzy auto-link clients for unmatched quotations (autoCreate=false for dry run)' })
+  relinkClients(@Query('autoCreate') autoCreate?: string) {
+    return this.quotationsService.relinkClientsForUnmatched(autoCreate !== 'false');
   }
 
   @Post()

@@ -13,6 +13,19 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { InvoiceService } from '../invoice/invoice.service';
 import { amountInWords } from '../invoice/invoice.utils';
 
+function normalizeCompanyName(name: string): string {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .replace(/[.,()&\[\]]/g, ' ')
+    .replace(
+      /\b(pvt|private|ltd|limited|llp|inc|corp|corporation|company|co)\b\.?/g,
+      '',
+    )
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 @Injectable()
 export class QuotationsService {
   constructor(
@@ -574,23 +587,29 @@ export class QuotationsService {
     };
   }
 
-  async relinkClientsForUnmatched() {
+  async relinkClientsForUnmatched(autoCreate = true) {
     const clients = await this.prisma.client.findMany({
       select: { id: true, name: true },
     });
 
-    if (clients.length === 0) {
-      return { total: 0, matched: 0, unmatched: 0, ambiguous: 0, details: [] };
-    }
+    const searchList = clients.map((c) => ({
+      id: c.id,
+      name: c.name,
+      normalized: normalizeCompanyName(c.name),
+    }));
 
     const unmatchedQuotations = await this.prisma.quotation.findMany({
       where: { clientId: null },
       select: { id: true, clientName: true },
     });
 
-    const fuse = new Fuse(clients, {
-      keys: ['name'],
-      threshold: 0.3,
+    if (unmatchedQuotations.length === 0) {
+      return { total: 0, matched: 0, unmatched: 0, ambiguous: 0, created: 0, details: [] };
+    }
+
+    const fuse = new Fuse(searchList, {
+      keys: ['normalized'],
+      threshold: 0.4,
       includeScore: true,
       ignoreLocation: true,
       minMatchCharLength: 3,
@@ -599,47 +618,41 @@ export class QuotationsService {
     let matched = 0;
     let unmatched = 0;
     let ambiguous = 0;
+    let created = 0;
     const details: Array<{
       quotationId: string;
       clientName: string;
       matchedClientName?: string;
       matchedClientId?: string;
       score?: number;
-      status: 'MATCHED' | 'UNMATCHED' | 'AMBIGUOUS';
+      status: 'MATCHED' | 'CREATED' | 'UNMATCHED' | 'AMBIGUOUS';
     }> = [];
 
     for (const q of unmatchedQuotations) {
       if (!q.clientName || q.clientName.trim() === '') {
         unmatched++;
-        details.push({
-          quotationId: q.id,
-          clientName: q.clientName || '',
-          status: 'UNMATCHED',
-        });
+        details.push({ quotationId: q.id, clientName: q.clientName || '', status: 'UNMATCHED' });
         continue;
       }
 
-      const results = fuse.search(q.clientName.trim());
-
-      if (results.length === 0) {
+      const normalizedQuery = normalizeCompanyName(q.clientName);
+      if (!normalizedQuery) {
         unmatched++;
-        details.push({
-          quotationId: q.id,
-          clientName: q.clientName,
-          status: 'UNMATCHED',
-        });
+        details.push({ quotationId: q.id, clientName: q.clientName, status: 'UNMATCHED' });
         continue;
       }
 
+      const results = fuse.search(normalizedQuery);
       const top = results[0];
       const second = results[1];
 
       const confident =
-        (top.score ?? 1) < 0.2 ||
-        !second ||
-        ((second.score ?? 1) - (top.score ?? 1)) > 0.15;
+        top &&
+        ((top.score ?? 1) < 0.25 ||
+          !second ||
+          ((second.score ?? 1) - (top.score ?? 1)) > 0.15);
 
-      if (confident) {
+      if (confident && top) {
         await this.prisma.quotation.update({
           where: { id: q.id },
           data: { clientId: top.item.id },
@@ -653,7 +666,7 @@ export class QuotationsService {
           score: top.score,
           status: 'MATCHED',
         });
-      } else {
+      } else if (top) {
         ambiguous++;
         details.push({
           quotationId: q.id,
@@ -663,15 +676,34 @@ export class QuotationsService {
           score: top.score,
           status: 'AMBIGUOUS',
         });
+      } else if (autoCreate) {
+        const newClient = await this.prisma.client.create({
+          data: { name: q.clientName.trim() },
+        });
+        await this.prisma.quotation.update({
+          where: { id: q.id },
+          data: { clientId: newClient.id },
+        });
+        searchList.push({
+          id: newClient.id,
+          name: newClient.name,
+          normalized: normalizeCompanyName(newClient.name),
+        });
+        fuse.setCollection(searchList);
+        created++;
+        details.push({
+          quotationId: q.id,
+          clientName: q.clientName,
+          matchedClientName: newClient.name,
+          matchedClientId: newClient.id,
+          status: 'CREATED',
+        });
+      } else {
+        unmatched++;
+        details.push({ quotationId: q.id, clientName: q.clientName, status: 'UNMATCHED' });
       }
     }
 
-    return {
-      total: unmatchedQuotations.length,
-      matched,
-      unmatched,
-      ambiguous,
-      details,
-    };
+    return { total: unmatchedQuotations.length, matched, unmatched, ambiguous, created, details };
   }
 }
