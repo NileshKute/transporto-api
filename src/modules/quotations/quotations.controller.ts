@@ -88,6 +88,32 @@ export class QuotationsController {
     return this.importService.reparseHistoricalData();
   }
 
+  @Post('admin/reparse-rates-from-zip')
+  @Roles('SUPER_ADMIN', 'ADMIN')
+  @RequirePermission('quotations', 'import')
+  @ApiOperation({ summary: 'Extract rates from .docx ZIP and update quotations (dryRun=true to preview)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+      required: ['file'],
+    },
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  async reparseRatesFromZip(
+    @UploadedFile() file: Express.Multer.File,
+    @Query('dryRun') dryRun?: string,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('ZIP file is required');
+    }
+    return this.quotationsService.reparseRatesFromZip(
+      file.buffer,
+      dryRun === 'true',
+    );
+  }
+
   @Post('relink-clients')
   @Roles('SUPER_ADMIN', 'ADMIN')
   @RequirePermission('quotations', 'import')

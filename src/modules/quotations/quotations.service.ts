@@ -12,6 +12,7 @@ import Fuse from 'fuse.js';
 import { PrismaService } from '../../prisma/prisma.service';
 import { InvoiceService } from '../invoice/invoice.service';
 import { amountInWords } from '../invoice/invoice.utils';
+import { parseQuotationZip } from './quotation-rate-parser';
 
 function normalizeCompanyName(name: string): string {
   if (!name) return '';
@@ -705,5 +706,156 @@ export class QuotationsService {
     }
 
     return { total: unmatchedQuotations.length, matched, unmatched, ambiguous, created, details };
+  }
+
+  async reparseRatesFromZip(zipBuffer: Buffer, dryRun = false) {
+    const parsed = await parseQuotationZip(zipBuffer);
+
+    const candidateQuotations = await this.prisma.quotation.findMany({
+      where: { monthlyRate: null },
+      select: { id: true, clientName: true, quoteDate: true },
+    });
+
+    let matched = 0;
+    let updated = 0;
+    const details: Array<{
+      fileName: string;
+      folderName: string;
+      monthlyRate: number | null;
+      fixedKm: number | null;
+      additionalPerKm: number | null;
+      quoteDate: string | null;
+      matchedQuotationId?: string;
+      action: string;
+    }> = [];
+    const unmatchedFiles: Array<{
+      folderName: string;
+      fileName: string;
+      rawSnippet: string;
+    }> = [];
+
+    for (const p of parsed) {
+      if (!p.monthlyRate) {
+        details.push({
+          fileName: p.fileName,
+          folderName: p.folderName,
+          monthlyRate: null,
+          fixedKm: p.fixedKm,
+          additionalPerKm: p.additionalPerKm,
+          quoteDate: p.quoteDate?.toISOString() || null,
+          action: 'NO_RATE',
+        });
+        unmatchedFiles.push({
+          folderName: p.folderName,
+          fileName: p.fileName,
+          rawSnippet: p.rawSnippet,
+        });
+        continue;
+      }
+
+      const folderLower = p.folderName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+      let bestMatch: (typeof candidateQuotations)[0] | null = null;
+      let bestScore = -1;
+
+      for (const q of candidateQuotations) {
+        if (!q.clientName) continue;
+        const qNameLower = q.clientName
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
+
+        let score = 0;
+        if (
+          qNameLower.includes(folderLower) ||
+          folderLower.includes(qNameLower)
+        ) {
+          score = Math.min(qNameLower.length, folderLower.length);
+        } else {
+          const folderTokens = p.folderName
+            .toLowerCase()
+            .split(/\s+/)
+            .filter((t) => t.length > 2);
+          const qTokens = q.clientName
+            .toLowerCase()
+            .split(/\s+/)
+            .filter((t) => t.length > 2);
+          score = folderTokens.filter((t) => qTokens.includes(t)).length;
+        }
+
+        if (p.quoteDate && q.quoteDate) {
+          const diffDays = Math.abs(
+            (new Date(p.quoteDate).getTime() -
+              new Date(q.quoteDate).getTime()) /
+              86_400_000,
+          );
+          if (diffDays < 7) score += 10;
+          else if (diffDays < 30) score += 5;
+        }
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = q;
+        }
+      }
+
+      if (bestMatch && bestScore >= 3) {
+        matched++;
+        const action = dryRun ? 'WOULD_UPDATE' : 'UPDATED';
+
+        if (!dryRun) {
+          await this.prisma.quotation.update({
+            where: { id: bestMatch.id },
+            data: {
+              monthlyRate: p.monthlyRate,
+              ...(p.fixedKm != null ? { fixedKm: p.fixedKm } : {}),
+              ...(p.additionalPerKm != null
+                ? { additionalPerKm: p.additionalPerKm }
+                : {}),
+            },
+          });
+          updated++;
+
+          const idx = candidateQuotations.findIndex(
+            (x) => x.id === bestMatch!.id,
+          );
+          if (idx >= 0) candidateQuotations.splice(idx, 1);
+        }
+
+        details.push({
+          fileName: p.fileName,
+          folderName: p.folderName,
+          monthlyRate: p.monthlyRate,
+          fixedKm: p.fixedKm,
+          additionalPerKm: p.additionalPerKm,
+          quoteDate: p.quoteDate?.toISOString() || null,
+          matchedQuotationId: bestMatch.id,
+          action,
+        });
+      } else {
+        details.push({
+          fileName: p.fileName,
+          folderName: p.folderName,
+          monthlyRate: p.monthlyRate,
+          fixedKm: p.fixedKm,
+          additionalPerKm: p.additionalPerKm,
+          quoteDate: p.quoteDate?.toISOString() || null,
+          action: 'NO_MATCH',
+        });
+      }
+    }
+
+    return {
+      filesProcessed: parsed.length,
+      ratesExtracted: parsed.filter((p) => p.monthlyRate !== null).length,
+      matched,
+      updated,
+      unmatchedFiles,
+      unmatchedQuotations: candidateQuotations.map((q) => ({
+        id: q.id,
+        clientName: q.clientName || '',
+      })),
+      details,
+    };
   }
 }
