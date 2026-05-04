@@ -144,7 +144,7 @@ export class QuotationsPdfService {
     doc.fillColor(C.navy).font('Helvetica-Bold').fontSize(9).text('Quote No:', ML + billPad, bY, { continued: true })
       .font('Helvetica').text(`  ${quotation.quoteNumber || '—'}`);
     doc.font('Helvetica-Bold').text('Quote Date:', ML + billPad, bY + 14, { continued: true })
-      .font('Helvetica').text(`  ${fmtDate(quotation.quoteDate as Date)}`);
+      .font('Helvetica').text(`  ${fmtDate((quotation.quoteDate || quotation.createdAt) as Date)}`);
     doc.font('Helvetica-Bold').text('Valid Until:', ML + billPad, bY + 28, { continued: true })
       .font('Helvetica').text(`  ${fmtDate(quotation.validUntil as Date)}`);
     doc.font('Helvetica-Bold').text('Validity (days):', ML + billPad, bY + 42, { continued: true })
